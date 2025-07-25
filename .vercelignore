@@ -1,0 +1,10 @@
+node_modules
+uploads
+.env
+.env.local
+.env.production.local
+.env.development.local
+*.log
+.DS_Store
+.vscode
+.git
