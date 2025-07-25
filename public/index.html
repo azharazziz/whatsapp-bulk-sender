@@ -37,8 +37,9 @@
             border-radius: 0.375rem;
             padding: 1rem;
             margin-top: 0.5rem;
-            white-space: pre-wrap;
+            white-space: pre-line;
             font-family: inherit;
+            line-height: 1.5;
         }
         .loading {
             display: none;
@@ -146,6 +147,9 @@
                             <button type="button" class="btn btn-outline-secondary btn-sm me-1 mt-1" onclick="loadQuickTemplate('reminder')">
                                 Reminder
                             </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-1 mt-1" onclick="loadQuickTemplate('wedding')">
+                                <i class="fas fa-heart"></i> Pernikahan
+                            </button>
                         </div>
                         <div class="template-preview">
                             <strong>Preview:</strong>
@@ -244,9 +248,12 @@
                         <div class="loading mt-3">
                             <div class="d-flex align-items-center">
                                 <div class="spinner-border text-success me-2" role="status"></div>
-                                <span>Mengirim pesan... <span id="sendProgress"></span></span>
+                                <div>
+                                    <span>Mengirim pesan... <span id="sendProgress"></span></span>
+                                    <br>
+                                    <small class="text-muted">Mohon tunggu, pengiriman dilakukan dengan jeda untuk menghindari spam</small>
+                                </div>
                             </div>
-                            <small class="text-muted">Mohon tunggu, pengiriman dilakukan dengan jeda untuk menghindari spam</small>
                         </div>
                         <div id="sendResults" class="mt-3"></div>
                     </div>
@@ -274,6 +281,48 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4" style="background-color: #128C7E; color: white;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fab fa-whatsapp"></i> WhatsApp Message Sender</h6>
+                    <p class="mb-1">Aplikasi untuk mengirim pesan WhatsApp secara massal menggunakan ZAPIN API</p>
+                    <small class="text-light">
+                        <i class="fas fa-code"></i> Developed by 
+                        <a href="https://github.com/azharazziz" target="_blank" class="text-light text-decoration-none fw-bold">
+                            Azhar Azziz
+                        </a>
+                        <br>
+                        Dibuat dengan ❤️ untuk memudahkan komunikasi bisnis
+                    </small>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h6>Powered By</h6>
+                    <p class="mb-1">
+                        <a href="https://zapin.my.id" target="_blank" class="text-light text-decoration-none">
+                            <i class="fas fa-external-link-alt"></i> ZAPIN API
+                        </a>
+                    </p>
+                    <small class="text-light">
+                        &copy; 2025 Azhar Azziz - WhatsApp Automate Sender. 
+                        <br class="d-md-none">
+                        All rights reserved.
+                    </small>
+                </div>
+            </div>
+            <hr class="my-3 text-light opacity-25">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <small class="text-light">
+                        <i class="fas fa-shield-alt"></i> 
+                        Data Anda aman - Semua informasi hanya disimpan dalam session dan akan terhapus otomatis
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <!-- Alert Container -->
     <div id="alertContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>

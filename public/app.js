@@ -75,8 +75,12 @@ function updateTemplatePreview() {
         return;
     }
     
-    // Replace template variables while preserving line breaks
+    // Clean up excessive whitespace and replace template variables
     const preview = template
+        .replace(/\r\n/g, '\n') // Normalize line breaks
+        .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive line breaks with 2
+        .replace(/ {2,}/g, ' ') // Replace multiple spaces with single space
+        .replace(/^\s+|\s+$/g, '') // Trim leading/trailing whitespace
         .replace(/{nama}/g, '[Nama Kontak]')
         .replace(/{to}/g, '[Nama+dengan+plus]');
     
@@ -141,6 +145,39 @@ Jangan lupa:
 • Lokasi: [Isi lokasi]
 
 Terima kasih! 🙏`;
+            break;
+            
+        case 'wedding':
+            template = `💒 UNDANGAN PERNIKAHAN 💒
+
+Bismillahirrahmanirrahim
+
+Assalamu'alaikum Wr. Wb.
+
+Dengan memohon rahmat dan ridho Allah SWT, kami mengundang {nama} untuk hadir dalam acara pernikahan:
+
+👰🤵 PENGANTIN:
+[Nama Mempelai Wanita] & [Nama Mempelai Pria]
+
+📅 AKAD NIKAH:
+Hari: [Hari, Tanggal]
+Waktu: [Waktu] WIB
+Tempat: [Alamat Akad]
+
+🎉 RESEPSI:
+Hari: [Hari, Tanggal]
+Waktu: [Waktu] WIB
+Tempat: [Alamat Resepsi]
+
+Untuk detail lainnya dapat mengakses tautan berikut:
+[Link ke undangan online]/?to={to}
+
+Merupakan kehormatan bagi kami apabila {nama} berkenan hadir memberikan doa restu.
+
+Jazakumullahu khairan katsiiran
+Wassalamu'alaikum Wr. Wb.
+
+❤️ Keluarga [Nama Keluarga]`;
             break;
     }
     
@@ -475,48 +512,115 @@ async function sendMessages() {
     
     loadingDiv.style.display = 'block';
     sendButton.disabled = true;
-    progressSpan.textContent = `0/${pendingContacts.length}`;
+    
+    let processedCount = 0;
+    let successCount = 0;
+    let failedCount = 0;
+    
+    // Update progress display
+    function updateProgress() {
+        progressSpan.textContent = `${processedCount}/${pendingContacts.length} (Berhasil: ${successCount}, Gagal: ${failedCount})`;
+    }
+    
+    updateProgress();
     
     try {
-        const response = await fetch('/api/send-messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                apiKey: useApiKey, 
-                sender: useSender 
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = data.contacts;
-            updateContactsList();
+        // Process contacts one by one to show real-time progress
+        for (let i = 0; i < pendingContacts.length; i++) {
+            const contact = pendingContacts[i];
             
-            // Show results
-            const resultsHTML = `
-                <div class="alert alert-info">
-                    <h6>Hasil Pengiriman:</h6>
-                    <ul class="mb-0">
-                        <li>Total diproses: ${data.summary.total}</li>
-                        <li>Berhasil: <span class="text-success">${data.summary.success}</span></li>
-                        <li>Gagal: <span class="text-danger">${data.summary.failed}</span></li>
-                    </ul>
-                    ${data.summary.total > 5 ? '<small class="text-muted">Pengiriman dilakukan dengan jeda 3-5 detik untuk menghindari spam.</small>' : ''}
-                </div>
-            `;
-            document.getElementById('sendResults').innerHTML = resultsHTML;
+            try {
+                // Send message to individual contact
+                const response = await fetch('/api/send-messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        apiKey: useApiKey, 
+                        sender: useSender,
+                        contactId: contact.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.summary.success > 0) {
+                    successCount++;
+                    // Update local contact status
+                    const localContact = contacts.find(c => c.id === contact.id);
+                    if (localContact) {
+                        localContact.status = 'sent';
+                        localContact.sentAt = new Date().toISOString();
+                    }
+                } else {
+                    failedCount++;
+                    // Update local contact status
+                    const localContact = contacts.find(c => c.id === contact.id);
+                    if (localContact) {
+                        localContact.status = 'failed';
+                        localContact.error = data.error || 'Unknown error';
+                    }
+                }
+                
+            } catch (error) {
+                console.error(`Error sending to ${contact.name}:`, error);
+                failedCount++;
+                // Update local contact status
+                const localContact = contacts.find(c => c.id === contact.id);
+                if (localContact) {
+                    localContact.status = 'failed';
+                    localContact.error = 'Network error';
+                }
+            }
             
-            showAlert(data.message, data.summary.failed > 0 ? 'warning' : 'success');
-        } else {
-            showAlert(data.error || 'Gagal mengirim pesan', 'danger');
+            processedCount++;
+            updateProgress();
+            updateContactsList(); // Update UI immediately
+            
+            // Add delay between messages (except for the last one)
+            if (i < pendingContacts.length - 1) {
+                const baseDelay = 3000; // 3 seconds base
+                const randomDelay = Math.floor(Math.random() * 2000); // 0-2 seconds random
+                const delayTime = baseDelay + randomDelay; // 3-5 seconds total
+                
+                // Show countdown for next message
+                let countdown = Math.ceil(delayTime / 1000);
+                const countdownInterval = setInterval(() => {
+                    progressSpan.textContent = `${processedCount}/${pendingContacts.length} (Berhasil: ${successCount}, Gagal: ${failedCount}) - Menunggu ${countdown}s`;
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        updateProgress();
+                    }
+                }, 1000);
+                
+                await new Promise(resolve => setTimeout(resolve, delayTime));
+                clearInterval(countdownInterval);
+            }
         }
         
+        // Show final results
+        const resultsHTML = `
+            <div class="alert alert-info">
+                <h6>Hasil Pengiriman:</h6>
+                <ul class="mb-0">
+                    <li>Total diproses: ${processedCount}</li>
+                    <li>Berhasil: <span class="text-success">${successCount}</span></li>
+                    <li>Gagal: <span class="text-danger">${failedCount}</span></li>
+                </ul>
+                <small class="text-muted">Pengiriman dilakukan dengan jeda 3-5 detik untuk menghindari spam.</small>
+            </div>
+        `;
+        document.getElementById('sendResults').innerHTML = resultsHTML;
+        
+        const alertType = failedCount > 0 ? 'warning' : 'success';
+        const alertMessage = `Pengiriman selesai! ${successCount} berhasil, ${failedCount} gagal dari ${processedCount} kontak.`;
+        showAlert(alertMessage, alertType);
+        
     } catch (error) {
-        showAlert('Error sending messages', 'danger');
-        console.error('Send messages error:', error);
+        showAlert('Error during bulk sending process', 'danger');
+        console.error('Bulk send error:', error);
     } finally {
         // Hide loading
         loadingDiv.style.display = 'none';
