@@ -1,15 +1,3 @@
-/**
- * WhatsApp Message Sender - ZAPIN API
- * 
- * A Node.js/Express application for sending WhatsApp messages using ZAPIN API
- * with contact management and message templating features.
- * 
- * @author Azhar Azziz <azharazzi13@gmail.com>
- * @version 1.0.0
- * @repository https://github.com/azharazziz/whatsapp-automate-sender
- * @license MIT
- */
-
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');

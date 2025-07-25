@@ -297,42 +297,41 @@ router.post('/reset-all-status', (req, res) => {
 // Send messages using ZAPIN API
 router.post('/send-messages', async (req, res) => {
     try {
-        initSession(req);
-        
-        // Use credentials from session, fallback to request body for backward compatibility
-        const { apiKey: bodyApiKey, sender: bodySender, contactId } = req.body;
-        const apiKey = req.session.apiKey || bodyApiKey;
-        const sender = req.session.sender || bodySender;
+        // Get data from request body (client-side storage)
+        const { 
+            apiKey, 
+            sender, 
+            contactId, 
+            contacts = [], 
+            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!' 
+        } = req.body;
         
         if (!apiKey || !sender) {
             return res.status(400).json({ error: 'API Key and Sender are required. Please save them first.' });
         }
         
-        // Update session with current credentials if provided in body
-        if (bodyApiKey && bodySender) {
-            req.session.apiKey = bodyApiKey;
-            req.session.sender = bodySender;
-        }
-        
-        if (req.session.contacts.length === 0) {
+        if (!contacts || contacts.length === 0) {
             return res.status(400).json({ error: 'No contacts available to send messages' });
         }
         
+        if (!messageTemplate) {
+            return res.status(400).json({ error: 'Message template is required' });
+        }
+        
         const results = [];
-        const template = req.session.messageTemplate;
         let contactsToSend = [];
         
         // Determine which contacts to send messages to
         if (contactId) {
             // Send to specific contact
-            const specificContact = req.session.contacts.find(c => c.id === parseInt(contactId));
+            const specificContact = contacts.find(c => c.id === parseInt(contactId));
             if (!specificContact) {
                 return res.status(404).json({ error: 'Contact not found' });
             }
             contactsToSend = [specificContact];
         } else {
             // Send to all pending contacts (not sent yet)
-            contactsToSend = req.session.contacts.filter(contact => contact.status === 'pending');
+            contactsToSend = contacts.filter(contact => contact.status === 'pending');
         }
         
         if (contactsToSend.length === 0) {
@@ -352,7 +351,7 @@ router.post('/send-messages', async (req, res) => {
                 // Replace template variables
                 const nameParam = contact.name;
                 const toParam = contact.name.replace(/\s+/g, '+');
-                const message = template
+                const message = messageTemplate
                     .replace(/{nama}/g, nameParam)
                     .replace(/{to}/g, toParam);
                 
@@ -411,7 +410,7 @@ router.post('/send-messages', async (req, res) => {
                     contact: contact,
                     status: 'failed',
                     error: contact.error,
-                    message: template.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                    message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
                 });
             }
             
@@ -433,19 +432,7 @@ router.post('/send-messages', async (req, res) => {
             }
         }
         
-        // Save to send history
-        const historyEntry = {
-            id: Date.now(),
-            timestamp: new Date().toISOString(),
-            template: template,
-            results: results,
-            totalContacts: req.session.contacts.length,
-            successCount: results.filter(r => r.status === 'success').length,
-            failedCount: results.filter(r => r.status === 'failed').length
-        };
-        
-        req.session.sendHistory.push(historyEntry);
-        
+        // Return response (history will be managed by client-side)
         res.json({
             message: contactId ? 'Message sent to individual contact' : 'Messages sent to all pending contacts',
             results: results,
@@ -454,7 +441,8 @@ router.post('/send-messages', async (req, res) => {
                 success: results.filter(r => r.status === 'success').length,
                 failed: results.filter(r => r.status === 'failed').length
             },
-            contacts: req.session.contacts,
+            // Return updated contacts so client can update their localStorage
+            updatedContacts: contacts,
             isIndividual: !!contactId
         });
         

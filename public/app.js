@@ -2,34 +2,61 @@
 let contacts = [];
 let messageTemplate = '';
 let sendHistory = [];
-let sessionId = '';
 let apiKey = '';
 let sender = '';
 
+// LocalStorage keys
+const STORAGE_KEYS = {
+    CONTACTS: 'whatsapp_bot_contacts',
+    TEMPLATE: 'whatsapp_bot_template',
+    HISTORY: 'whatsapp_bot_history',
+    API_KEY: 'whatsapp_bot_api_key',
+    SENDER: 'whatsapp_bot_sender'
+};
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    loadSession();
+    loadFromLocalStorage();
     updateTemplatePreview();
     
     // Add event listeners
     document.getElementById('messageTemplate').addEventListener('input', updateTemplatePreview);
+    
+    // Auto-save to localStorage when data changes
+    window.addEventListener('beforeunload', saveToLocalStorage);
 });
 
-// Load session data
-async function loadSession() {
+// Save data to localStorage
+function saveToLocalStorage() {
     try {
-        const response = await fetch('/api/session');
-        const data = await response.json();
+        localStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(contacts));
+        localStorage.setItem(STORAGE_KEYS.TEMPLATE, messageTemplate);
+        localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(sendHistory));
+        localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
+        localStorage.setItem(STORAGE_KEYS.SENDER, sender);
         
-        contacts = data.contacts || [];
-        messageTemplate = data.messageTemplate || '';
-        sendHistory = data.sendHistory || [];
-        sessionId = data.sessionId || '';
-        apiKey = data.apiKey || '';
-        sender = data.sender || '';
+    } catch (error) {
+        console.error('Error saving to localStorage:', error);
+        showAlert('Error saving data locally', 'warning');
+    }
+}
+
+// Load data from localStorage
+function loadFromLocalStorage() {
+    try {
+        const savedContacts = localStorage.getItem(STORAGE_KEYS.CONTACTS);
+        const savedTemplate = localStorage.getItem(STORAGE_KEYS.TEMPLATE);
+        const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
+        const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
+        const savedSender = localStorage.getItem(STORAGE_KEYS.SENDER);
+        
+        contacts = savedContacts ? JSON.parse(savedContacts) : [];
+        messageTemplate = savedTemplate || 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+        sendHistory = savedHistory ? JSON.parse(savedHistory) : [];
+        apiKey = savedApiKey || '';
+        sender = savedSender || '';
         
         document.getElementById('messageTemplate').value = messageTemplate;
-        document.getElementById('sessionId').textContent = sessionId;
         document.getElementById('apiKey').value = apiKey;
         document.getElementById('sender').value = sender;
         
@@ -37,9 +64,25 @@ async function loadSession() {
         updateTemplatePreview();
         
     } catch (error) {
-        showAlert('Error loading session data', 'danger');
-        console.error('Load session error:', error);
+        console.error('Error loading from localStorage:', error);
+        showAlert('Error loading local data, using defaults', 'warning');
+        
+        // Use defaults if localStorage fails
+        contacts = [];
+        messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+        sendHistory = [];
+        apiKey = '';
+        sender = '';
+        
+        document.getElementById('messageTemplate').value = messageTemplate;
+        updateContactsList();
+        updateTemplatePreview();
     }
+}
+
+// Legacy function for backward compatibility (now uses localStorage)
+async function loadSession() {
+    loadFromLocalStorage();
 }
 
 // Show alert messages
@@ -66,9 +109,11 @@ function showAlert(message, type = 'info') {
     }, 5000);
 }
 
-// Update template preview
+// Update template preview and save to localStorage
 function updateTemplatePreview() {
     const template = document.getElementById('messageTemplate').value;
+    messageTemplate = template; // Update global variable
+    saveToLocalStorage(); // Auto-save to localStorage
     
     if (!template) {
         document.getElementById('templatePreview').textContent = 'Template kosong...';
@@ -219,7 +264,7 @@ async function updateTemplate() {
     }
 }
 
-// Save API credentials
+// Save API credentials (now saves locally)
 async function saveCredentials() {
     const newApiKey = document.getElementById('apiKey').value.trim();
     const newSender = document.getElementById('sender').value.trim();
@@ -230,26 +275,10 @@ async function saveCredentials() {
     }
     
     try {
-        const response = await fetch('/api/api-credentials', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                apiKey: newApiKey, 
-                sender: newSender 
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            apiKey = newApiKey;
-            sender = newSender;
-            showAlert('Kredensial API berhasil disimpan', 'success');
-        } else {
-            showAlert(data.error || 'Gagal menyimpan kredensial', 'danger');
-        }
+        apiKey = newApiKey;
+        sender = newSender;
+        saveToLocalStorage();
+        showAlert('Kredensial API berhasil disimpan', 'success');
         
     } catch (error) {
         showAlert('Error saving credentials', 'danger');
@@ -257,7 +286,7 @@ async function saveCredentials() {
     }
 }
 
-// Upload contacts file
+// Upload contacts file (now processes locally)
 async function uploadContacts() {
     const fileInput = document.getElementById('contactFile');
     const file = fileInput.files[0];
@@ -267,33 +296,41 @@ async function uploadContacts() {
         return;
     }
     
-    const formData = new FormData();
-    formData.append('contactFile', file);
-    
     try {
-        const response = await fetch('/api/upload-contacts', {
-            method: 'POST',
-            body: formData
+        const fileContent = await file.text();
+        
+        // Parse CSV/TXT file locally
+        const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+        const newContacts = [];
+        
+        lines.forEach((line, index) => {
+            const parts = line.split(',').map(part => part.trim().replace(/"/g, ''));
+            if (parts.length >= 2) {
+                const [name, phone] = parts;
+                if (name && phone) {
+                    newContacts.push({
+                        id: Date.now() + index,
+                        name: name,
+                        phone: phone.replace(/\D/g, ''), // Remove non-digits
+                        status: 'pending'
+                    });
+                }
+            }
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = data.contacts;
-            updateContactsList();
-            showAlert(data.message, 'success');
-            fileInput.value = ''; // Clear file input
-        } else {
-            showAlert(data.error || 'Gagal upload file', 'danger');
-        }
+        contacts = newContacts;
+        saveToLocalStorage();
+        updateContactsList();
+        showAlert(`${newContacts.length} contacts uploaded successfully`, 'success');
+        fileInput.value = ''; // Clear file input
         
     } catch (error) {
-        showAlert('Error uploading file', 'danger');
+        showAlert('Error reading file', 'danger');
         console.error('Upload error:', error);
     }
 }
 
-// Add single contact
+// Add single contact (now saves locally)
 async function addContact() {
     const name = document.getElementById('contactName').value.trim();
     const phone = document.getElementById('contactPhone').value.trim();
@@ -304,27 +341,21 @@ async function addContact() {
     }
     
     try {
-        const response = await fetch('/api/add-contact', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, phone })
-        });
+        const contact = {
+            id: Date.now(),
+            name: name,
+            phone: phone.replace(/\D/g, ''),
+            status: 'pending'
+        };
         
-        const data = await response.json();
+        contacts.push(contact);
+        saveToLocalStorage();
+        updateContactsList();
+        showAlert('Contact added successfully', 'success');
         
-        if (response.ok) {
-            contacts = data.contacts;
-            updateContactsList();
-            showAlert(data.message, 'success');
-            
-            // Clear inputs
-            document.getElementById('contactName').value = '';
-            document.getElementById('contactPhone').value = '';
-        } else {
-            showAlert(data.error || 'Gagal menambah kontak', 'danger');
-        }
+        // Clear inputs
+        document.getElementById('contactName').value = '';
+        document.getElementById('contactPhone').value = '';
         
     } catch (error) {
         showAlert('Error adding contact', 'danger');
@@ -332,25 +363,22 @@ async function addContact() {
     }
 }
 
-// Delete specific contact
+// Delete specific contact (now removes locally)
 async function deleteContact(contactId) {
     if (!confirm('Hapus kontak ini?')) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/contact/${contactId}`, {
-            method: 'DELETE'
-        });
+        const initialLength = contacts.length;
+        contacts = contacts.filter(contact => contact.id !== contactId);
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = data.contacts;
+        if (contacts.length < initialLength) {
+            saveToLocalStorage();
             updateContactsList();
-            showAlert(data.message, 'success');
+            showAlert('Contact deleted successfully', 'success');
         } else {
-            showAlert(data.error || 'Gagal menghapus kontak', 'danger');
+            showAlert('Contact not found', 'danger');
         }
         
     } catch (error) {
@@ -359,28 +387,19 @@ async function deleteContact(contactId) {
     }
 }
 
-// Clear all contacts
+// Clear all contacts (now clears locally)
 async function clearAllContacts() {
     if (!confirm('Hapus semua kontak dan riwayat pengiriman?')) {
         return;
     }
     
     try {
-        const response = await fetch('/api/contacts', {
-            method: 'DELETE'
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = [];
-            sendHistory = [];
-            updateContactsList();
-            document.getElementById('sendHistory').innerHTML = '';
-            showAlert(data.message, 'success');
-        } else {
-            showAlert(data.error || 'Gagal menghapus kontak', 'danger');
-        }
+        contacts = [];
+        sendHistory = [];
+        saveToLocalStorage();
+        updateContactsList();
+        document.getElementById('sendHistory').innerHTML = '';
+        showAlert('All contacts and history cleared successfully', 'success');
         
     } catch (error) {
         showAlert('Error clearing contacts', 'danger');
@@ -480,7 +499,7 @@ async function sendMessages() {
     }
     
     if (contacts.length === 0) {
-        showAlert('Tidak ada kontak untuk dikirim pesan', 'warning');
+        showAlert('Tidak ada kontak untuk dikirim pesan. Silakan tambah kontak terlebih dahulu.', 'warning');
         return;
     }
     
@@ -491,6 +510,7 @@ async function sendMessages() {
     
     // Count pending contacts
     const pendingContacts = contacts.filter(c => c.status === 'pending');
+    
     if (pendingContacts.length === 0) {
         showAlert('Tidak ada kontak dengan status pending untuk dikirim pesan', 'info');
         return;
@@ -539,7 +559,9 @@ async function sendMessages() {
                     body: JSON.stringify({ 
                         apiKey: useApiKey, 
                         sender: useSender,
-                        contactId: contact.id
+                        contactId: contact.id,
+                        contacts: contacts,
+                        messageTemplate: messageTemplate
                     })
                 });
                 
@@ -563,6 +585,25 @@ async function sendMessages() {
                     }
                 }
                 
+                // Save contacts status to localStorage after each update
+                saveToLocalStorage();
+                
+                // Save to send history if this is the last contact or an error occurred
+                if (response.ok && data.results) {
+                    // Add to send history
+                    const historyEntry = {
+                        id: Date.now() + i,
+                        timestamp: new Date().toISOString(),
+                        template: messageTemplate,
+                        results: data.results,
+                        totalContacts: contacts.length,
+                        successCount: data.summary?.success || 0,
+                        failedCount: data.summary?.failed || 0
+                    };
+                    sendHistory.push(historyEntry);
+                    saveToLocalStorage();
+                }
+                
             } catch (error) {
                 console.error(`Error sending to ${contact.name}:`, error);
                 failedCount++;
@@ -572,6 +613,8 @@ async function sendMessages() {
                     localContact.status = 'failed';
                     localContact.error = 'Network error';
                 }
+                // Save contacts status to localStorage after each update
+                saveToLocalStorage();
             }
             
             processedCount++;
@@ -662,14 +705,18 @@ async function sendMessageToContact(contactId) {
             body: JSON.stringify({ 
                 apiKey: useApiKey, 
                 sender: useSender,
-                contactId: contactId
+                contactId: contactId,
+                contacts: contacts,
+                messageTemplate: messageTemplate
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            contacts = data.contacts;
+            // Update contacts with response from server
+            contacts = data.updatedContacts || contacts;
+            saveToLocalStorage();
             updateContactsList();
             
             const contact = contacts.find(c => c.id === contactId);
@@ -716,26 +763,23 @@ async function resetContactStatus(contactId) {
     }
 }
 
-// Reset all contacts status
+// Reset all contacts status (now resets locally)
 async function resetAllStatus() {
     if (!confirm('Reset status semua kontak ke pending?')) {
         return;
     }
     
     try {
-        const response = await fetch('/api/reset-all-status', {
-            method: 'POST'
+        contacts.forEach(contact => {
+            contact.status = 'pending';
+            delete contact.sentAt;
+            delete contact.error;
+            delete contact.response;
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = data.contacts;
-            updateContactsList();
-            showAlert(data.message, 'success');
-        } else {
-            showAlert(data.error || 'Gagal reset status semua kontak', 'danger');
-        }
+        saveToLocalStorage();
+        updateContactsList();
+        showAlert('Status semua kontak berhasil direset ke pending', 'success');
         
     } catch (error) {
         showAlert('Error resetting all status', 'danger');
@@ -843,4 +887,39 @@ function displaySendHistory() {
     }).reverse().join('');
     
     historyDiv.innerHTML = historyHTML;
+}
+
+// ========== LocalStorage Management Functions ==========
+
+// Clear all localStorage data
+function clearAllData() {
+    if (confirm('Hapus semua data termasuk kontak, template, dan riwayat?\n\nTindakan ini tidak dapat dibatalkan!')) {
+        try {
+            // Clear localStorage
+            Object.values(STORAGE_KEYS).forEach(key => {
+                localStorage.removeItem(key);
+            });
+            
+            // Reset all variables
+            contacts = [];
+            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+            sendHistory = [];
+            apiKey = '';
+            sender = '';
+            
+            // Update UI
+            document.getElementById('messageTemplate').value = messageTemplate;
+            document.getElementById('apiKey').value = '';
+            document.getElementById('sender').value = '';
+            
+            updateContactsList();
+            updateTemplatePreview();
+            
+            showAlert('Semua data berhasil dihapus', 'success');
+            
+        } catch (error) {
+            console.error('Clear data error:', error);
+            showAlert('Error clearing data', 'danger');
+        }
+    }
 }
