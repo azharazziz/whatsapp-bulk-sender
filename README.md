@@ -5,13 +5,29 @@ Aplikasi pengirim pesan WhatsApp menggunakan ZAPIN API dengan fitur manajemen ko
 ## Fitur
 
 - ✅ Autentikasi menggunakan API Key ZAPIN
-- ✅ Upload daftar kontak dari file CSV/TXT
+- ✅ Upload daftar kontak dari file CSV/TXT/VCF (vCard)
 - ✅ Tambah kontak manual
 - ✅ Template pesan dengan parameter `{nama}` dan `{to}`
-- ✅ Session management (data terisolasi per pengguna)
+- ✅ Data persistence menggunakan localStorage browser
+- ✅ Search, filter, dan pagination untuk daftar kontak
 - ✅ Hapus kontak spesifik atau semua kontak
 - ✅ Download laporan pengiriman dalam format CSV
 - ✅ Riwayat pengiriman pesan
+
+## Prasyarat
+
+**Sebelum menggunakan aplikasi ini, Anda harus:**
+
+1. **Registrasi di [Zapin.my.id](https://zapin.my.id)**
+   - Buat akun di website resmi ZAPIN
+   - Dapatkan **API Key** dan **Sender Number** Anda
+   - Pastikan akun Anda aktif dan memiliki saldo/kuota
+
+2. **Persiapan WhatsApp Business**
+   - Pastikan nomor WhatsApp Business Anda sudah terdaftar di ZAPIN
+   - Nomor tersebut akan digunakan sebagai **Sender**
+
+> ⚠️ **Penting**: API Key dan Sender Number hanya bisa didapat melalui registrasi resmi di [Zapin.my.id](https://zapin.my.id). Tidak ada cara lain untuk mendapatkan kredensial ini.
 
 ## Cara Penggunaan
 
@@ -42,8 +58,16 @@ Buka browser dan akses: `http://localhost:3000`
 ## Penggunaan Aplikasi
 
 ### 1. Konfigurasi API ZAPIN
-- Masukkan **API Key** dari ZAPIN
-- Masukkan **Sender** (nomor pengirim)
+
+> 📋 **Cara Mendapatkan API Key dan Sender:**
+> 1. Kunjungi [Zapin.my.id](https://zapin.my.id)
+> 2. Daftar akun baru atau login jika sudah punya
+> 3. Hubungkan nomor WhatsApp Business Anda
+> 4. Dapatkan API Key dari dashboard ZAPIN
+> 5. Gunakan nomor WhatsApp yang terdaftar sebagai Sender
+
+- Masukkan **API Key** dari ZAPIN (contoh: `zapin_xxx123xxx`)
+- Masukkan **Sender** (nomor WhatsApp Business yang terdaftar di ZAPIN)
 
 ### 2. Buat Template Pesan
 - Tulis template pesan Anda
@@ -52,23 +76,45 @@ Buka browser dan akses: `http://localhost:3000`
 - Contoh: "Halo {nama}, pesan ini untuk {to}"
 
 ### 3. Upload Kontak
-**Format file CSV/TXT:**
+
+**Format file yang didukung:**
+- **CSV/TXT:** Nama,Nomor Telepon
+- **VCF (vCard):** File kontak dari aplikasi kontak HP
+
+**Contoh format CSV/TXT:**
 ```
 Nama,Nomor Telepon
 John Doe,081234567890
 Jane Smith,082345678901
 ```
 
+**Contoh vCard:** Download sample dari aplikasi atau export dari kontak HP Anda.
+
 Atau tambah kontak manual satu per satu.
 
-### 4. Kirim Pesan
+### 4. Mengelola Kontak
+
+**Fitur manajemen kontak:**
+- **Search**: Cari kontak berdasarkan nama atau nomor telepon
+- **Filter Status**: Filter kontak berdasarkan status (Pending, Terkirim, Gagal)
+- **Pagination**: Tampilkan 10/25/50/100 kontak per halaman
+- **Scroll**: Daftar kontak dapat di-scroll jika banyak
+- **Individual Actions**: Kirim pesan, reset status, atau hapus kontak satu per satu
+
+### 5. Kirim Pesan
 - Klik "Kirim Pesan ke Semua Kontak"
 - Sistem akan mengirim pesan ke semua kontak dengan status "pending"
 - Lihat hasil pengiriman dan status setiap kontak
 
-### 5. Laporan
+### 6. Laporan
 - Download laporan pengiriman dalam format CSV
 - Lihat riwayat pengiriman sebelumnya
+- Status pengiriman real-time untuk setiap kontak
+
+### 7. Sample Files
+- Download sample CSV file untuk testing
+- Download sample vCard file untuk testing
+- Upload file sample untuk mencoba fitur aplikasi
 
 ## API Endpoints
 
@@ -129,12 +175,15 @@ Atau tambah kontak manual satu per satu.
 | `{nama}` | Nama kontak asli | "John Doe" |
 | `{to}` | Nama dengan spasi diganti + | "John+Doe" |
 
-## Session Management
+## Data Persistence
 
-- Data kontak dan riwayat disimpan dalam session
-- Setiap pengguna memiliki data terpisah
-- Session akan berakhir setelah 24 jam atau restart server
-- Tidak ada data yang tersimpan permanent di database
+- **Client-side Storage**: Data disimpan di localStorage browser
+- **Session Independence**: Setiap browser/tab memiliki data terpisah  
+- **Serverless Ready**: Tidak memerlukan database atau session server
+- **Persistent Data**: Data tetap tersimpan meskipun server restart
+- **Privacy**: Data hanya tersimpan lokal di browser pengguna
+
+> 💾 **Catatan**: Data akan hilang jika user clear browser data atau menggunakan mode incognito.
 
 ## Struktur Project
 
@@ -154,34 +203,60 @@ wa-bot/
 ## Dependencies
 
 - **express** - Web framework
-- **express-session** - Session management
-- **multer** - File upload handling
-- **axios** - HTTP client for ZAPIN API
+- **multer** - File upload handling (CSV, TXT, VCF files)
+- **axios** - HTTP client for ZAPIN API calls
 - **cors** - Cross-origin resource sharing
-- **dotenv** - Environment variables
+- **dotenv** - Environment variables management
 
 ## Keamanan
 
-- Session data terisolasi per pengguna
-- File upload dibatasi hanya CSV/TXT
-- API Key disimpan sementara di session (tidak di database)
-- Automatic cleanup file upload temporary
+- **Client-side Data**: Data tersimpan lokal di browser (localStorage)
+- **No Server Storage**: Tidak ada data sensitif tersimpan di server
+- **File Upload Security**: Upload dibatasi hanya file CSV/TXT/VCF
+- **API Key Protection**: API Key hanya tersimpan sementara di browser
+- **Automatic Cleanup**: File upload temporary otomatis dibersihkan
 
 ## Troubleshooting
 
-### Error "Only CSV and TXT files are allowed"
-- Pastikan file yang diupload berformat CSV atau TXT
-- Periksa ekstensi file (.csv atau .txt)
-
 ### Error "API Key and Sender are required"
-- Pastikan API Key dan Sender sudah diisi
-- Periksa kredensial ZAPIN API Anda
+- **Pastikan Anda sudah registrasi di [Zapin.my.id](https://zapin.my.id)**
+- Dapatkan API Key yang valid dari dashboard ZAPIN
+- Gunakan nomor WhatsApp Business yang sudah terdaftar di ZAPIN
+- Periksa format API Key dan nomor Sender
+
+### Error "Only CSV, TXT and VCF files are allowed"
+- Pastikan file yang diupload berformat CSV, TXT, atau VCF
+- Periksa ekstensi file (.csv, .txt, atau .vcf)
 
 ### Error "Failed to send messages"
 - Periksa koneksi internet
+- **Pastikan akun ZAPIN Anda aktif dan memiliki saldo/kuota**
 - Pastikan ZAPIN API berfungsi normal
-- Periksa format nomor telepon (hanya angka)
+- Periksa format nomor telepon (hanya angka, dimulai dengan 08 atau 628)
+- Cek status nomor Sender di dashboard ZAPIN
+
+### Kontak tidak muncul setelah upload vCard
+- Pastikan file vCard berisi nomor telepon yang valid
+- File vCard harus dari aplikasi kontak yang standar
+- Coba export ulang file vCard dari aplikasi kontak Anda
 
 ## Support
 
-Untuk dukungan teknis, silakan hubungi tim pengembang atau lihat dokumentasi ZAPIN API di website resmi mereka.
+**Untuk dukungan teknis:**
+
+1. **Masalah API ZAPIN:** 
+   - Kunjungi [Zapin.my.id](https://zapin.my.id) untuk dokumentasi resmi
+   - Hubungi support ZAPIN untuk masalah API Key, Sender, atau pengiriman pesan
+   - Cek status layanan ZAPIN di website mereka
+
+2. **Masalah Aplikasi:**
+   - Periksa console browser untuk error JavaScript
+   - Pastikan file upload sesuai format yang didukung
+   - Refresh halaman jika terjadi masalah loading
+
+3. **Integrasi WhatsApp Business:**
+   - Pastikan nomor WhatsApp Business sudah terverifikasi
+   - Cek pengaturan API di dashboard ZAPIN
+   - Pastikan akun ZAPIN memiliki saldo yang cukup
+
+> 💡 **Tips:** Selalu gunakan [Zapin.my.id](https://zapin.my.id) sebagai sumber resmi untuk mendapatkan API Key dan dokumentasi terbaru.

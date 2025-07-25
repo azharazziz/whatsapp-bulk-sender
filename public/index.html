@@ -13,6 +13,175 @@
     <style>
         .navbar-brand {
             font-weight: bold;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            color: #ffffff !important;
+        }
+        
+        .navbar-brand:hover {
+            color: #25D366 !important;
+            transform: scale(1.05);
+        }
+        
+        .navbar-brand i {
+            font-size: 1.8rem;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* Header Styles */
+        .custom-navbar {
+            background: linear-gradient(135deg, #128C7E 0%, #25D366 50%, #128C7E 100%);
+            box-shadow: 0 4px 20px rgba(18, 140, 126, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            backdrop-filter: blur(10px);
+            color: #ffffff;
+        }
+        
+        .custom-navbar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #25D366, #128C7E, #075E54, #128C7E, #25D366);
+            background-size: 200% 100%;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            margin: 0 0.5rem;
+            padding: 0.5rem 1rem !important;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .navbar-nav .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff !important;
+        }
+        
+        .navbar-toggler {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 0.5rem;
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(37, 211, 102, 0.25);
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2855, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='m4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+        
+        .navbar-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: blink 2s infinite;
+        }
+        
+        .status-dot.online {
+            background-color: #25D366;
+        }
+        
+        .status-dot.offline {
+            background-color: #e74c3c;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .navbar-stats {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            min-width: 60px;
+        }
+        
+        .stat-number {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #ffffff;
+        }
+        
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.7rem;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 991px) {
+            .navbar-stats {
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-top: 1rem;
+                width: 100%;
+            }
+            
+            .stat-item {
+                flex-direction: row;
+                justify-content: space-between;
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .navbar-nav {
+                text-align: center;
+                margin-top: 1rem;
+            }
         }
         .card-header {
             background: linear-gradient(135deg, #25D366, #128C7E);
@@ -57,17 +226,321 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.75rem;
         }
+        
+        /* Pagination and Search Styles */
+        .pagination-sm .page-link {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        #contactsListContainer {
+            background-color: #f8f9fa;
+        }
+        
+        #contactsListContainer::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #contactsListContainer::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        #contactsListContainer::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        #contactsListContainer::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .contact-item {
+            transition: background-color 0.2s ease;
+        }
+        
+        .contact-item:hover {
+            background-color: #e9ecef !important;
+        }
+        
+        .search-highlight {
+            background-color: yellow;
+            padding: 0.1rem 0.2rem;
+            border-radius: 0.2rem;
+        }
+        
+        /* Footer Styles */
+        footer {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #25D366, #128C7E, #075E54);
+        }
+        
+        .footer-section {
+            height: 100%;
+        }
+        
+        .footer-title {
+            font-weight: 600;
+            color: #ffffff;
+            border-bottom: 2px solid #25D366;
+            display: inline-block;
+            padding-bottom: 0.5rem;
+        }
+        
+        .footer-subtitle {
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+        
+        .footer-text {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+        
+        .footer-badges .badge {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .footer-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .footer-list li {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .footer-list li i {
+            color: #25D366;
+            width: 16px;
+            margin-right: 0.5rem;
+        }
+        
+        .tech-stack .tech-item {
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+        }
+        
+        .tech-stack .tech-item i {
+            width: 20px;
+            margin-right: 0.75rem;
+            font-size: 1rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .footer-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .footer-link:hover {
+            color: #25D366;
+            text-decoration: none;
+            transform: translateX(5px);
+        }
+        
+        .footer-link i {
+            margin-right: 0.5rem;
+            width: 16px;
+        }
+        
+        .developer-info strong {
+            color: #ffffff;
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .social-link:hover {
+            background: #25D366;
+            color: #ffffff;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .privacy-notice {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .privacy-text {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+        }
+        
+        .version-info .badge {
+            font-size: 0.75rem;
+        }
+        
+        .copyright-text, .made-with {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .made-with i.fa-heart {
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes heartbeat {
+            0%, 50%, 100% { transform: scale(1); }
+            25%, 75% { transform: scale(1.1); }
+        }
+        
+        /* Responsive Footer */
+        @media (max-width: 768px) {
+            .footer-section {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            
+            .footer-links {
+                align-items: center;
+            }
+            
+            .social-links {
+                justify-content: center;
+            }
+            
+            .tech-stack .tech-item {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #128C7E;">
+    <nav class="navbar navbar-expand-lg navbar-dark custom-navbar">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fab fa-whatsapp"></i> WhatsApp Sender
+            <!-- Brand -->
+            <a class="navbar-brand" href="#" onclick="scrollToTop()">
+                <i class="fab fa-whatsapp"></i>
+                <span>WhatsApp Bulk Sender</span>
             </a>
-            <span class="navbar-text">
-                Powered by ZAPIN API
-            </span>
+            
+            <!-- Mobile Toggle Button -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Navbar Content -->
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <!-- Navigation Links -->
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="scrollToSection('api-config')">
+                            <i class="fas fa-key me-1"></i>Setup
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="scrollToSection('contacts')">
+                            <i class="fas fa-users me-1"></i>Kontak
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="scrollToSection('messaging')">
+                            <i class="fas fa-paper-plane me-1"></i>Kirim
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="scrollToSection('reports')">
+                            <i class="fas fa-chart-bar me-1"></i>Laporan
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- Status and Stats -->
+                <div class="navbar-status">
+                    <!-- API Status -->
+                    <div class="status-indicator">
+                        <span class="status-dot online" id="apiStatus"></span>
+                        <span id="apiStatusText">ZAPIN Ready</span>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="navbar-stats d-none d-xl-flex">
+                        <div class="stat-item">
+                            <span class="stat-number" id="headerContactCount">0</span>
+                            <span class="stat-label">Kontak</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="headerSentCount">0</span>
+                            <span class="stat-label">Terkirim</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="headerPendingCount">0</span>
+                            <span class="stat-label">Pending</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="clearAllData()">
+                                    <i class="fas fa-trash me-2"></i>Reset Semua Data
+                                </a></li>
+                                <li><a class="dropdown-item" href="https://zapin.my.id" target="_blank">
+                                    <i class="fas fa-external-link-alt me-2"></i>ZAPIN Dashboard
+                                </a></li>
+                                <li><a class="dropdown-item" href="https://github.com/azharazziz/whatsapp-bulk-sender" target="_blank">
+                                    <i class="fab fa-github me-2"></i>GitHub Repo
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><span class="dropdown-item-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>v2.0.0 - Stable
+                                    </small>
+                                </span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -80,13 +553,14 @@
         </div>
 
         <!-- API Configuration -->
-        <div class="row mb-4">
+        <div class="row mb-4" id="api-config">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-key"></i> Konfigurasi API ZAPIN</h5>
                     </div>
                     <div class="card-body">
+                        
                         <div class="row">
                             <div class="col-md-6">
                                 <label for="apiKey" class="form-label">API Key</label>
@@ -97,6 +571,9 @@
                                 <input type="text" class="form-control" id="sender" placeholder="Masukkan sender number">
                             </div>
                         </div>
+                        
+                        
+                        
                         <div class="mt-3">
                             <button type="button" class="btn btn-primary" onclick="saveCredentials()">
                                 <i class="fas fa-save"></i> Simpan Kredensial
@@ -104,6 +581,20 @@
                             <small class="form-text text-muted ms-2">
                                 <i class="fas fa-info-circle"></i> Data disimpan secara lokal di browser Anda (localStorage)
                             </small>
+                        </div>
+
+                        <!-- Information Box for ZAPIN Registration -->
+                        <div class="alert alert-info mt-3" role="alert">
+                            <h6 class="alert-heading mb-2">Cara Mendapatkan Kredensial ZAPIN</h6>
+                            <p class="mb-2">
+                                <strong>API Key</strong> dan <strong>Sender Number</strong> dapat diperoleh dengan mendaftar di ZAPIN terlebih dahulu.
+                            </p>
+                            <div class="d-flex align-items-center">
+                                <a href="https://zapin.my.id" target="_blank" class="btn btn-outline-primary btn-sm me-3">
+                                    Daftar di Zapin.my.id
+                                </a>
+                                <small class="text-muted">Situs resmi ZAPIN API</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -158,7 +649,7 @@
         </div>
 
         <!-- Contact Management -->
-        <div class="row mb-4">
+        <div class="row mb-4" id="contacts">
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
@@ -166,15 +657,39 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="contactFile" class="form-label">File Kontak (CSV/TXT)</label>
-                            <input type="file" class="form-control" id="contactFile" accept=".csv,.txt">
+                            <label for="contactFile" class="form-label">File Kontak</label>
+                            <input type="file" class="form-control" id="contactFile" accept=".csv,.txt,.vcf">
                             <div class="form-text">
-                                Format: Nama,Nomor Telepon (satu per baris)
+                                <strong>Format yang didukung:</strong>
+                                <ul class="mb-1 mt-1">
+                                    <li><strong>CSV/TXT:</strong> Nama,Nomor Telepon (satu per baris)</li>
+                                    <li><strong>vCard (.vcf):</strong> File kontak dari HP/aplikasi kontak</li>
+                                </ul>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Contoh CSV: "John Doe,081234567890"<br>
+                                    <i class="fas fa-info-circle"></i> 
+                                    File vCard dapat diekspor dari aplikasi kontak HP Anda<br>
+                                    <i class="fas fa-mobile-alt"></i> 
+                                    <strong>Cara ekspor vCard:</strong> Buka Kontak → Pilih kontak → Share/Bagikan → Pilih vCard/VCF
+                                </small>
                             </div>
                         </div>
                         <button type="button" class="btn btn-whatsapp" onclick="uploadContacts()">
                             <i class="fas fa-upload"></i> Upload Kontak
                         </button>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-download"></i> 
+                                <a href="sample-contacts.csv" download class="text-decoration-none me-3">
+                                    Download sample CSV file
+                                </a>
+                                <i class="fas fa-download"></i> 
+                                <a href="sample-contacts.vcf" download class="text-decoration-none">
+                                    Download sample vCard file
+                                </a> untuk testing
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -214,14 +729,57 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="contactsList"></div>
+                        <!-- Search and Filter Controls -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="searchContacts" placeholder="Cari nama atau nomor..." onkeyup="searchContacts()">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="statusFilter" onchange="filterContacts()">
+                                    <option value="">Semua Status</option>
+                                    <option value="pending">Belum Dikirim</option>
+                                    <option value="sent">Terkirim</option>
+                                    <option value="failed">Gagal</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" id="itemsPerPage" onchange="changeItemsPerPage()">
+                                    <option value="10">10 per halaman</option>
+                                    <option value="25" selected>25 per halaman</option>
+                                    <option value="50">50 per halaman</option>
+                                    <option value="100">100 per halaman</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Contacts List Container with Scroll -->
+                        <div id="contactsListContainer" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;">
+                            <div id="contactsList" class="p-2"></div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <small class="text-muted">
+                                    Menampilkan <span id="showingFrom">0</span> - <span id="showingTo">0</span> dari <span id="totalContacts">0</span> kontak
+                                </small>
+                            </div>
+                            <nav aria-label="Pagination">
+                                <ul class="pagination pagination-sm mb-0" id="pagination">
+                                    <!-- Pagination akan diisi oleh JavaScript -->
+                                </ul>
+                            </nav>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Send Messages -->
-        <div class="row mb-4">
+        <div class="row mb-4" id="messaging">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -259,7 +817,7 @@
         </div>
 
         <!-- Reports -->
-        <div class="row mb-4">
+        <div class="row mb-4" id="reports">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -280,55 +838,161 @@
     </div>
 
     <!-- Footer -->
-    <footer class="mt-5 py-4" style="background-color: #128C7E; color: white;">
+    <footer class="mt-5" style="background: linear-gradient(135deg, #128C7E 0%, #075E54 100%); color: white;">
         <div class="container">
-            <div class="row">
+            <!-- Main Footer Content -->
+            <div class="row py-5">
+                <!-- About Section -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="footer-section">
+                        <h5 class="footer-title mb-3">
+                            <i class="fab fa-whatsapp me-2"></i>WhatsApp Bulk Sender
+                        </h5>
+                        <p class="footer-text mb-3">
+                            Solusi profesional untuk mengirim pesan WhatsApp secara massal dengan mudah dan efisien. 
+                            Didukung oleh ZAPIN API yang terpercaya.
+                        </p>
+                        <div class="footer-badges">
+                            <span class="badge bg-success me-2 mb-2">
+                                <i class="fas fa-check-circle me-1"></i>Serverless Ready
+                            </span>
+                            <span class="badge bg-info me-2 mb-2">
+                                <i class="fas fa-shield-alt me-1"></i>Privacy First
+                            </span>
+                            <span class="badge bg-warning text-dark mb-2">
+                                <i class="fab fa-osi me-1"></i>Open Source
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Features Section -->
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <div class="footer-section">
+                        <h6 class="footer-subtitle mb-3">
+                            <i class="fas fa-star me-2"></i>Fitur Utama
+                        </h6>
+                        <ul class="footer-list">
+                            <li><i class="fas fa-upload"></i> Upload CSV/TXT/VCF</li>
+                            <li><i class="fas fa-search"></i> Search & Filter</li>
+                            <li><i class="fas fa-list"></i> Pagination</li>
+                            <li><i class="fas fa-paper-plane"></i> Bulk Messaging</li>
+                            <li><i class="fas fa-chart-line"></i> Real-time Reports</li>
+                            <li><i class="fas fa-history"></i> Send History</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Tech Stack Section -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="footer-section">
+                        <h6 class="footer-subtitle mb-3">
+                            <i class="fas fa-code me-2"></i>Teknologi
+                        </h6>
+                        <div class="tech-stack">
+                            <div class="tech-item mb-2">
+                                <i class="fab fa-node-js"></i>
+                                <span>Node.js & Express.js</span>
+                            </div>
+                            <div class="tech-item mb-2">
+                                <i class="fab fa-bootstrap"></i>
+                                <span>Bootstrap 5</span>
+                            </div>
+                            <div class="tech-item mb-2">
+                                <i class="fab fa-js-square"></i>
+                                <span>Vanilla JavaScript</span>
+                            </div>
+                            <div class="tech-item mb-2">
+                                <i class="fas fa-database"></i>
+                                <span>localStorage</span>
+                            </div>
+                            <div class="tech-item mb-2">
+                                <i class="fas fa-cloud"></i>
+                                <span>Vercel Deployment</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Links & Contact Section -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="footer-section">
+                        <h6 class="footer-subtitle mb-3">
+                            <i class="fas fa-link me-2"></i>Links & Support
+                        </h6>
+                        <div class="footer-links mb-3">
+                            <a href="https://zapin.my.id" target="_blank" class="footer-link">
+                                <i class="fas fa-external-link-alt"></i> ZAPIN API
+                            </a>
+                            <a href="https://github.com/azharazziz/whatsapp-bulk-sender" target="_blank" class="footer-link">
+                                <i class="fab fa-github"></i> GitHub Repository
+                            </a>
+                            <a href="https://azharazziz.github.io" target="_blank" class="footer-link">
+                                <i class="fas fa-user-circle"></i> Developer Profile
+                            </a>
+                        </div>
+                        
+                        <div class="developer-info">
+                            <h6 class="footer-subtitle mb-2">
+                                <i class="fas fa-user-tie me-2"></i>Developer
+                            </h6>
+                            <p class="mb-2">
+                                <strong>Azhar Azziz</strong><br>
+                                <small>Full Stack Developer</small>
+                            </p>
+                            <div class="social-links">
+                                <a href="https://github.com/azharazziz" target="_blank" class="social-link" title="GitHub">
+                                    <i class="fab fa-github"></i>
+                                </a>
+                                <a href="https://www.linkedin.com/in/azhar-azziz-afifi" class="social-link" title="LinkedIn">
+                                    <i class="fab fa-linkedin"></i>
+                                </a>
+                                <a href="https://azharazziz.github.io" class="social-link" title="Portfolio">
+                                    <i class="fas fa-globe"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Privacy & Security Notice -->
+            <div class="row py-3 border-top border-light border-opacity-25">
+                <div class="col-12">
+                    <div class="privacy-notice text-center">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <small class="privacy-text">
+                                    <i class="fas fa-shield-alt text-success me-2"></i>
+                                    <strong>100% Privacy Protected:</strong> Semua data Anda (kontak, template, riwayat) hanya disimpan di browser Anda. 
+                                    Tidak ada data yang dikirim atau disimpan di server kami.
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                                <div class="version-info">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-tag me-1"></i>v2.0.0
+                                    </span>
+                                    <span class="badge bg-success ms-1">
+                                        <i class="fas fa-check me-1"></i>Stable
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Copyright -->
+            <div class="row py-3 border-top border-light border-opacity-25">
                 <div class="col-md-6">
-                    <h6><i class="fab fa-whatsapp"></i> WhatsApp Message Sender</h6>
-                    <p class="mb-1">Aplikasi untuk mengirim pesan WhatsApp secara massal menggunakan ZAPIN API</p>
-                    <small class="text-light">
-                        <i class="fas fa-code"></i> Developed by 
-                        <a href="https://github.com/azharazziz" target="_blank" class="text-light text-decoration-none fw-bold">
-                            Azhar Azziz
-                        </a>
-                        <br>
-                        Dibuat dengan ❤️ untuk memudahkan komunikasi bisnis
+                    <small class="copyright-text">
+                        &copy; 2025 <strong>Azhar Azziz</strong> - WhatsApp Bulk Sender. All lefts reserved.
                     </small>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <h6>Built With</h6>
-                    <div class="mb-2">
-                        <small class="text-light">
-                            <i class="fab fa-node-js"></i> Node.js & Express.js<br>
-                            <i class="fab fa-bootstrap"></i> Bootstrap 5 & Font Awesome<br>
-                            <i class="fab fa-js-square"></i> Vanilla JavaScript & LocalStorage<br>
-                            <i class="fas fa-cloud"></i> Serverless Ready (Vercel)<br>
-                        </small>
-                    </div>
-                    <h6>Powered By</h6>
-                    <p class="mb-1">
-                        <a href="https://zapin.my.id" target="_blank" class="text-light text-decoration-none">
-                            <i class="fas fa-external-link-alt"></i> ZAPIN WhatsApp API
-                        </a>
-                    </p>
-                    <small class="text-light">
-                        &copy; 2025 Azhar Azziz - WhatsApp Bulk Sender. 
-                        <br class="d-md-none">
-                        All rights reserved.
-                    </small>
-                </div>
-            </div>
-            <hr class="my-3 text-light opacity-25">
-            <div class="row">
-                <div class="col-12 text-center">
-                    <small class="text-light">
-                        <i class="fas fa-shield-alt"></i> 
-                        Data Anda aman - Semua informasi hanya disimpan di browser Anda (localStorage).<br>
-                        <i class="fab fa-github"></i> 
-                        Open Source Project - 
-                        <a href="https://github.com/azharazziz/whatsapp-bulk-sender" target="_blank" class="text-light text-decoration-none">
-                            View on GitHub
-                        </a>
+                    <small class="made-with">
+                        Made with <i class="fas fa-heart text-danger"></i> because i'm tired of sending messages one by one.
                     </small>
                 </div>
             </div>

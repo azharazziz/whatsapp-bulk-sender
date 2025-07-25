@@ -1,0 +1,39 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:John Doe
+N:Doe;John;;;
+TEL;TYPE=CELL:+6281234567890
+EMAIL:john.doe@example.com
+END:VCARD
+
+BEGIN:VCARD
+VERSION:3.0
+FN:Jane Smith
+N:Smith;Jane;;;
+TEL;TYPE=CELL:+6281234567891
+EMAIL:jane.smith@example.com
+END:VCARD
+
+BEGIN:VCARD
+VERSION:3.0
+FN:Bob Johnson
+N:Johnson;Bob;;;
+TEL;TYPE=CELL:081234567892
+EMAIL:bob.johnson@example.com
+END:VCARD
+
+BEGIN:VCARD
+VERSION:3.0
+FN:Alice Brown
+N:Brown;Alice;;;
+TEL;TYPE=CELL:08-1234-567893
+EMAIL:alice.brown@example.com
+END:VCARD
+
+BEGIN:VCARD
+VERSION:3.0
+FN:Charlie Wilson
+N:Wilson;Charlie;;;
+TEL;TYPE=CELL:(021) 1234-5678
+EMAIL:charlie.wilson@example.com
+END:VCARD

@@ -1,5 +1,4 @@
 const express = require('express');
-const session = require('express-session');
 const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
@@ -16,20 +15,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Session configuration - Updated for serverless
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'wa-bot-secret-key',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true
-    },
-    // For production, you might want to use a different session store
-    // like connect-redis or connect-mongo for persistence across serverless functions
-}));
 
 // Multer configuration for file uploads - Updated for serverless
 const storage = multer.memoryStorage(); // Use memory storage for serverless
@@ -60,6 +45,15 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Serve sample files
+app.get('/sample-contacts.csv', (req, res) => {
+    res.sendFile(path.join(__dirname, 'sample-contacts.csv'));
+});
+
+app.get('/sample-contacts.vcf', (req, res) => {
+    res.sendFile(path.join(__dirname, 'sample-contacts.vcf'));
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
     if (error instanceof multer.MulterError) {
@@ -68,8 +62,8 @@ app.use((error, req, res, next) => {
         }
     }
     
-    if (error.message === 'Only CSV and TXT files are allowed!') {
-        return res.status(400).json({ error: 'Only CSV and TXT files are allowed!' });
+    if (error.message === 'Only CSV, TXT, and VCF (vCard) files are allowed!') {
+        return res.status(400).json({ error: 'Only CSV, TXT, and VCF (vCard) files are allowed!' });
     }
     
     res.status(500).json({ error: 'Something went wrong!' });

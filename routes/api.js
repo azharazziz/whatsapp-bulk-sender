@@ -13,11 +13,14 @@ const upload = multer({
     fileFilter: function (req, file, cb) {
         if (file.mimetype === 'text/csv' || 
             file.mimetype === 'text/plain' || 
+            file.mimetype === 'text/vcard' ||
+            file.mimetype === 'text/x-vcard' ||
             file.originalname.endsWith('.csv') || 
-            file.originalname.endsWith('.txt')) {
+            file.originalname.endsWith('.txt') ||
+            file.originalname.endsWith('.vcf')) {
             cb(null, true);
         } else {
-            cb(new Error('Only CSV and TXT files are allowed!'), false);
+            cb(new Error('Only CSV, TXT, and VCF (vCard) files are allowed!'), false);
         }
     },
     limits: {
@@ -25,89 +28,122 @@ const upload = multer({
     }
 });
 
-// Initialize session data
-function initSession(req) {
-    if (!req.session.contacts) {
-        req.session.contacts = [];
-    }
-    if (!req.session.messageTemplate) {
-        req.session.messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
-    }
-    if (!req.session.sendHistory) {
-        req.session.sendHistory = [];
-    }
-    if (!req.session.apiKey) {
-        req.session.apiKey = '';
-    }
-    if (!req.session.sender) {
-        req.session.sender = '';
-    }
-}
-
-// Get session data
-router.get('/session', (req, res) => {
-    initSession(req);
-    res.json({
-        contacts: req.session.contacts,
-        messageTemplate: req.session.messageTemplate,
-        sendHistory: req.session.sendHistory,
-        apiKey: req.session.apiKey,
-        sender: req.session.sender,
-        sessionId: req.session.id
+// Parse vCard (VCF) content
+function parseVCard(vcfContent) {
+    const contacts = [];
+    const vcards = vcfContent.split('BEGIN:VCARD');
+    
+    vcards.forEach((vcard, index) => {
+        if (!vcard.trim()) return;
+        
+        let name = '';
+        let phone = '';
+        
+        const lines = vcard.split('\n');
+        
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            
+            // Parse Full Name (FN) or Name (N)
+            if (trimmedLine.startsWith('FN:')) {
+                name = trimmedLine.substring(3).trim();
+            } else if (trimmedLine.startsWith('N:') && !name) {
+                // N format: Family;Given;Middle;Prefix;Suffix
+                const nameParts = trimmedLine.substring(2).split(';');
+                const given = nameParts[1] || '';
+                const family = nameParts[0] || '';
+                name = `${given} ${family}`.trim();
+            }
+            
+            // Parse Phone numbers (TEL)
+            if (trimmedLine.startsWith('TEL') && !phone) {
+                // Extract phone number after colon
+                const colonIndex = trimmedLine.indexOf(':');
+                if (colonIndex !== -1) {
+                    phone = trimmedLine.substring(colonIndex + 1).trim();
+                    // Clean phone number - remove spaces, dashes, parentheses
+                    phone = phone.replace(/[\s\-\(\)\+]/g, '');
+                }
+            }
+        });
+        
+        // Add contact if both name and phone are found
+        if (name && phone) {
+            contacts.push({
+                id: Date.now() + index,
+                name: name,
+                phone: phone.replace(/\D/g, ''), // Keep only digits
+                status: 'pending'
+            });
+        }
     });
-});
+    
+    return contacts;
+}
 
 // Upload contacts file
 router.post('/upload-contacts', upload.single('contactFile'), (req, res) => {
     try {
-        initSession(req);
-        
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Read file content from memory buffer (serverless compatible)
-        const fileContent = req.file.buffer.toString('utf8');
-        
-        // Parse CSV/TXT file
-        const lines = fileContent.split('\n').filter(line => line.trim() !== '');
-        const contacts = [];
-        
-        lines.forEach((line, index) => {
-            const parts = line.split(',').map(part => part.trim().replace(/"/g, ''));
-            if (parts.length >= 2) {
-                const [name, phone] = parts;
-                if (name && phone) {
-                    contacts.push({
-                        id: Date.now() + index,
-                        name: name,
-                        phone: phone.replace(/\D/g, ''), // Remove non-digits
-                        status: 'pending'
-                    });
-                }
-            }
+        console.log('File uploaded:', {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size
         });
 
-        req.session.contacts = contacts;
+        // Read file content from memory buffer (serverless compatible)
+        const fileContent = req.file.buffer.toString('utf8');
+        let contacts = [];
         
-        // No file cleanup needed with memory storage
+        // Determine file type and parse accordingly
+        const fileName = req.file.originalname.toLowerCase();
+        
+        if (fileName.endsWith('.vcf') || req.file.mimetype === 'text/vcard' || req.file.mimetype === 'text/x-vcard') {
+            // Parse vCard format
+            console.log('Parsing vCard file...');
+            contacts = parseVCard(fileContent);
+            
+        } else {
+            // Parse CSV/TXT format
+            console.log('Parsing CSV/TXT file...');
+            const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+            
+            lines.forEach((line, index) => {
+                const parts = line.split(',').map(part => part.trim().replace(/"/g, ''));
+                if (parts.length >= 2) {
+                    const [name, phone] = parts;
+                    if (name && phone) {
+                        contacts.push({
+                            id: Date.now() + index,
+                            name: name,
+                            phone: phone.replace(/\D/g, ''), // Remove non-digits
+                            status: 'pending'
+                        });
+                    }
+                }
+            });
+        }
+        
+        console.log(`Parsed ${contacts.length} contacts from ${fileName}`);
         
         res.json({ 
-            message: `${contacts.length} contacts uploaded successfully`, 
-            contacts: contacts 
+            message: `${contacts.length} contacts uploaded successfully from ${req.file.originalname}`, 
+            contacts: contacts,
+            fileType: fileName.endsWith('.vcf') ? 'vCard' : 'CSV/TXT'
         });
         
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({ error: 'Failed to process file' });
+        res.status(500).json({ error: 'Failed to process file: ' + error.message });
     }
 });
 
 // Add single contact
 router.post('/add-contact', (req, res) => {
     try {
-        initSession(req);
-        
         const { name, phone } = req.body;
         
         if (!name || !phone) {
@@ -121,12 +157,9 @@ router.post('/add-contact', (req, res) => {
             status: 'pending'
         };
         
-        req.session.contacts.push(contact);
-        
         res.json({ 
             message: 'Contact added successfully', 
-            contact: contact,
-            contacts: req.session.contacts 
+            contact: contact
         });
         
     } catch (error) {
@@ -135,164 +168,26 @@ router.post('/add-contact', (req, res) => {
     }
 });
 
-// Delete specific contact
-router.delete('/contact/:id', (req, res) => {
-    try {
-        initSession(req);
-        
-        const contactId = parseInt(req.params.id);
-        const initialLength = req.session.contacts.length;
-        
-        req.session.contacts = req.session.contacts.filter(contact => contact.id !== contactId);
-        
-        if (req.session.contacts.length < initialLength) {
-            res.json({ 
-                message: 'Contact deleted successfully',
-                contacts: req.session.contacts 
-            });
-        } else {
-            res.status(404).json({ error: 'Contact not found' });
-        }
-        
-    } catch (error) {
-        console.error('Delete contact error:', error);
-        res.status(500).json({ error: 'Failed to delete contact' });
-    }
-});
+// Delete specific contact - Not needed for localStorage approach
+// Client will handle contact deletion directly
 
-// Clear all contacts
-router.delete('/contacts', (req, res) => {
-    try {
-        initSession(req);
-        req.session.contacts = [];
-        req.session.sendHistory = [];
-        // Keep API credentials when clearing contacts
-        
-        res.json({ message: 'All contacts cleared successfully' });
-        
-    } catch (error) {
-        console.error('Clear contacts error:', error);
-        res.status(500).json({ error: 'Failed to clear contacts' });
-    }
-});
+// Clear all contacts - Not needed for localStorage approach  
+// Client will handle clearing directly
 
-// Update message template
-router.post('/message-template', (req, res) => {
-    try {
-        initSession(req);
-        
-        const { template } = req.body;
-        
-        if (!template) {
-            return res.status(400).json({ error: 'Template is required' });
-        }
-        
-        req.session.messageTemplate = template;
-        
-        res.json({ 
-            message: 'Message template updated successfully',
-            template: template 
-        });
-        
-    } catch (error) {
-        console.error('Update template error:', error);
-        res.status(500).json({ error: 'Failed to update template' });
-    }
-});
+// Update message template - Not needed for localStorage approach
+// Client will handle template updates directly
 
-// Update API credentials
-router.post('/api-credentials', (req, res) => {
-    try {
-        initSession(req);
-        
-        const { apiKey, sender } = req.body;
-        
-        if (!apiKey || !sender) {
-            return res.status(400).json({ error: 'API Key and Sender are required' });
-        }
-        
-        req.session.apiKey = apiKey;
-        req.session.sender = sender;
-        
-        res.json({ 
-            message: 'API credentials saved successfully',
-            apiKey: apiKey,
-            sender: sender
-        });
-        
-    } catch (error) {
-        console.error('Update credentials error:', error);
-        res.status(500).json({ error: 'Failed to save credentials' });
-    }
-});
+// Update API credentials - Not needed for localStorage approach
+// Client will handle credential saving directly
 
-// Clear API credentials
-router.delete('/api-credentials', (req, res) => {
-    try {
-        initSession(req);
-        
-        req.session.apiKey = '';
-        req.session.sender = '';
-        
-        res.json({ message: 'API credentials cleared successfully' });
-        
-    } catch (error) {
-        console.error('Clear credentials error:', error);
-        res.status(500).json({ error: 'Failed to clear credentials' });
-    }
-});
+// Clear API credentials - Not needed for localStorage approach
+// Client will handle credential clearing directly
 
-// Reset contact status
-router.post('/reset-contact-status/:id', (req, res) => {
-    try {
-        initSession(req);
-        
-        const contactId = parseInt(req.params.id);
-        const contact = req.session.contacts.find(c => c.id === contactId);
-        
-        if (!contact) {
-            return res.status(404).json({ error: 'Contact not found' });
-        }
-        
-        contact.status = 'pending';
-        delete contact.sentAt;
-        delete contact.error;
-        delete contact.response;
-        
-        res.json({ 
-            message: 'Contact status reset successfully',
-            contact: contact,
-            contacts: req.session.contacts 
-        });
-        
-    } catch (error) {
-        console.error('Reset contact status error:', error);
-        res.status(500).json({ error: 'Failed to reset contact status' });
-    }
-});
+// Reset contact status - Not needed for localStorage approach
+// Client will handle status reset directly
 
-// Reset all contacts status
-router.post('/reset-all-status', (req, res) => {
-    try {
-        initSession(req);
-        
-        req.session.contacts.forEach(contact => {
-            contact.status = 'pending';
-            delete contact.sentAt;
-            delete contact.error;
-            delete contact.response;
-        });
-        
-        res.json({ 
-            message: 'All contacts status reset successfully',
-            contacts: req.session.contacts 
-        });
-        
-    } catch (error) {
-        console.error('Reset all status error:', error);
-        res.status(500).json({ error: 'Failed to reset all contacts status' });
-    }
-});
+// Reset all contacts status - Not needed for localStorage approach
+// Client will handle bulk status reset directly
 
 // Send messages using ZAPIN API
 router.post('/send-messages', async (req, res) => {
@@ -453,46 +348,97 @@ router.post('/send-messages', async (req, res) => {
 });
 
 // Download report
-router.get('/download-report', (req, res) => {
+router.post('/download-report', (req, res) => {
     try {
-        initSession(req);
+        console.log('=== DOWNLOAD REPORT SERVER DEBUG ===');
+        console.log('Request received');
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
         
-        if (req.session.sendHistory.length === 0) {
-            return res.status(400).json({ error: 'No send history available' });
+        const { sendHistory = [] } = req.body;
+        
+        console.log('Send history type:', typeof sendHistory);
+        console.log('Send history is array:', Array.isArray(sendHistory));
+        console.log('Send history length:', sendHistory.length);
+        
+        if (!Array.isArray(sendHistory) || sendHistory.length === 0) {
+            console.log('No valid send history available');
+            return res.status(400).json({ error: 'No send history available. Please send some messages first.' });
         }
         
         // Generate CSV report
         let csvContent = 'Timestamp,Template,Contact Name,Phone,Status,Message,Error\n';
+        let processedRows = 0;
         
-        req.session.sendHistory.forEach(history => {
-            history.results.forEach(result => {
-                const contact = result.contact;
-                // Escape newlines for CSV format
-                const escapedTemplate = history.template.replace(/\n/g, '\\n').replace(/"/g, '""');
-                const escapedMessage = result.message.replace(/\n/g, '\\n').replace(/"/g, '""');
-                const escapedError = (result.error || '').replace(/\n/g, '\\n').replace(/"/g, '""');
-                
-                const row = [
-                    history.timestamp,
-                    `"${escapedTemplate}"`,
-                    `"${contact.name.replace(/"/g, '""')}"`,
-                    contact.phone,
-                    result.status,
-                    `"${escapedMessage}"`,
-                    `"${escapedError}"`
-                ].join(',');
-                csvContent += row + '\n';
+        sendHistory.forEach((history, historyIndex) => {
+            console.log(`Processing history ${historyIndex + 1}:`, {
+                timestamp: history.timestamp,
+                hasResults: !!history.results,
+                resultsType: typeof history.results,
+                resultsIsArray: Array.isArray(history.results),
+                resultsCount: history.results?.length || 0
+            });
+            
+            if (!history.results || !Array.isArray(history.results)) {
+                console.warn(`History ${historyIndex} has no valid results array`);
+                return;
+            }
+            
+            history.results.forEach((result, resultIndex) => {
+                try {
+                    const contact = result.contact;
+                    if (!contact) {
+                        console.warn(`Missing contact in result ${resultIndex} of history ${historyIndex}`);
+                        return;
+                    }
+                    
+                    // Escape newlines and quotes for CSV format
+                    const escapedTemplate = (history.template || '').replace(/\n/g, '\\n').replace(/"/g, '""');
+                    const escapedMessage = (result.message || '').replace(/\n/g, '\\n').replace(/"/g, '""');
+                    const escapedError = (result.error || '').replace(/\n/g, '\\n').replace(/"/g, '""');
+                    const escapedName = (contact.name || '').replace(/"/g, '""');
+                    
+                    const row = [
+                        history.timestamp || '',
+                        `"${escapedTemplate}"`,
+                        `"${escapedName}"`,
+                        contact.phone || '',
+                        result.status || '',
+                        `"${escapedMessage}"`,
+                        `"${escapedError}"`
+                    ].join(',');
+                    
+                    csvContent += row + '\n';
+                    processedRows++;
+                    
+                } catch (rowError) {
+                    console.error(`Error processing row ${resultIndex} in history ${historyIndex}:`, rowError);
+                }
             });
         });
         
+        console.log('CSV processing complete:');
+        console.log('- Processed rows:', processedRows);
+        console.log('- CSV content length:', csvContent.length);
+        console.log('- First 200 chars:', csvContent.substring(0, 200));
+        
+        if (processedRows === 0) {
+            console.log('No valid data to export');
+            return res.status(400).json({ error: 'No valid data found in send history.' });
+        }
+        
         // Set headers for file download
-        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="whatsapp-report-${Date.now()}.csv"`);
+        res.setHeader('Content-Length', Buffer.byteLength(csvContent, 'utf8'));
         res.send(csvContent);
+        
+        console.log('CSV report sent successfully');
         
     } catch (error) {
         console.error('Download report error:', error);
-        res.status(500).json({ error: 'Failed to generate report' });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Failed to generate report: ' + error.message });
     }
 });
 
@@ -535,15 +481,7 @@ router.post('/test-zapin', async (req, res) => {
     }
 });
 
-// Get send history
-router.get('/send-history', (req, res) => {
-    try {
-        initSession(req);
-        res.json({ history: req.session.sendHistory });
-    } catch (error) {
-        console.error('Get history error:', error);
-        res.status(500).json({ error: 'Failed to get send history' });
-    }
-});
+// Get send history - Not needed for localStorage approach
+// Client will handle history display directly
 
 module.exports = router;

@@ -5,6 +5,13 @@ let sendHistory = [];
 let apiKey = '';
 let sender = '';
 
+// Pagination and search variables
+let currentPage = 1;
+let itemsPerPage = 25;
+let filteredContacts = [];
+let searchTerm = '';
+let statusFilter = '';
+
 // LocalStorage keys
 const STORAGE_KEYS = {
     CONTACTS: 'whatsapp_bot_contacts',
@@ -24,6 +31,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-save to localStorage when data changes
     window.addEventListener('beforeunload', saveToLocalStorage);
+    
+    // Initialize footer interactions
+    initFooterInteractions();
+    
+    // Initialize header functionality
+    initHeaderFunctionality();
 });
 
 // Save data to localStorage
@@ -50,15 +63,37 @@ function loadFromLocalStorage() {
         const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
         const savedSender = localStorage.getItem(STORAGE_KEYS.SENDER);
         
+        // Try loading from old keys if new keys are empty (backward compatibility)
+        const oldHistoryKey = 'wa_bot_send_history';
+        const oldHistory = localStorage.getItem(oldHistoryKey);
+        
         contacts = savedContacts ? JSON.parse(savedContacts) : [];
         messageTemplate = savedTemplate || 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
-        sendHistory = savedHistory ? JSON.parse(savedHistory) : [];
+        sendHistory = savedHistory ? JSON.parse(savedHistory) : (oldHistory ? JSON.parse(oldHistory) : []);
         apiKey = savedApiKey || '';
         sender = savedSender || '';
+        
+        // If we loaded from old key, migrate to new key
+        if (!savedHistory && oldHistory) {
+            console.log('Migrating sendHistory from old key to new key');
+            localStorage.setItem(STORAGE_KEYS.HISTORY, oldHistory);
+            localStorage.removeItem(oldHistoryKey);
+        }
+        
+        console.log('Loaded from localStorage:', {
+            contacts: contacts.length,
+            template: messageTemplate ? 'present' : 'empty',
+            history: sendHistory.length,
+            apiKey: apiKey ? 'present' : 'empty',
+            sender: sender ? 'present' : 'empty'
+        });
         
         document.getElementById('messageTemplate').value = messageTemplate;
         document.getElementById('apiKey').value = apiKey;
         document.getElementById('sender').value = sender;
+        
+        // Initialize filtered contacts
+        filteredContacts = [...contacts];
         
         updateContactsList();
         updateTemplatePreview();
@@ -78,11 +113,6 @@ function loadFromLocalStorage() {
         updateContactsList();
         updateTemplatePreview();
     }
-}
-
-// Legacy function for backward compatibility (now uses localStorage)
-async function loadSession() {
-    loadFromLocalStorage();
 }
 
 // Show alert messages
@@ -240,23 +270,10 @@ async function updateTemplate() {
     }
     
     try {
-        const response = await fetch('/api/message-template', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ template })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            messageTemplate = template;
-            showAlert('Template pesan berhasil disimpan', 'success');
-            updateTemplatePreview();
-        } else {
-            showAlert(data.error || 'Gagal menyimpan template', 'danger');
-        }
+        messageTemplate = template;
+        saveToLocalStorage();
+        showAlert('Template pesan berhasil disimpan', 'success');
+        updateTemplatePreview();
         
     } catch (error) {
         showAlert('Error updating template', 'danger');
@@ -278,6 +295,10 @@ async function saveCredentials() {
         apiKey = newApiKey;
         sender = newSender;
         saveToLocalStorage();
+        
+        // Update API status after saving credentials
+        updateApiStatus();
+        
         showAlert('Kredensial API berhasil disimpan', 'success');
         
     } catch (error) {
@@ -286,7 +307,7 @@ async function saveCredentials() {
     }
 }
 
-// Upload contacts file (now processes locally)
+// Upload contacts file (uses server API for vCard support)
 async function uploadContacts() {
     const fileInput = document.getElementById('contactFile');
     const file = fileInput.files[0];
@@ -296,37 +317,57 @@ async function uploadContacts() {
         return;
     }
     
+    // Show loading
+    const uploadButton = document.querySelector('button[onclick="uploadContacts()"]');
+    const originalText = uploadButton.innerHTML;
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    
     try {
-        const fileContent = await file.text();
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('contactFile', file);
         
-        // Parse CSV/TXT file locally
-        const lines = fileContent.split('\n').filter(line => line.trim() !== '');
-        const newContacts = [];
-        
-        lines.forEach((line, index) => {
-            const parts = line.split(',').map(part => part.trim().replace(/"/g, ''));
-            if (parts.length >= 2) {
-                const [name, phone] = parts;
-                if (name && phone) {
-                    newContacts.push({
-                        id: Date.now() + index,
-                        name: name,
-                        phone: phone.replace(/\D/g, ''), // Remove non-digits
-                        status: 'pending'
-                    });
-                }
-            }
+        console.log('Uploading file:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
         });
         
-        contacts = newContacts;
-        saveToLocalStorage();
-        updateContactsList();
-        showAlert(`${newContacts.length} contacts uploaded successfully`, 'success');
-        fileInput.value = ''; // Clear file input
+        const response = await fetch('/api/upload-contacts', {
+            method: 'POST',
+            body: formData // No Content-Type header needed with FormData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Replace current contacts with uploaded ones
+            contacts = data.contacts || [];
+            saveToLocalStorage();
+            updateContactsList();
+            
+            const fileType = data.fileType ? ` (${data.fileType})` : '';
+            showAlert(`${data.message}${fileType}`, 'success');
+            fileInput.value = ''; // Clear file input
+            
+            console.log('Upload successful:', {
+                contactsCount: contacts.length,
+                fileType: data.fileType
+            });
+            
+        } else {
+            showAlert(data.error || 'Gagal upload file', 'danger');
+            console.error('Upload failed:', data);
+        }
         
     } catch (error) {
-        showAlert('Error reading file', 'danger');
+        showAlert('Error uploading file', 'danger');
         console.error('Upload error:', error);
+    } finally {
+        // Reset button
+        uploadButton.disabled = false;
+        uploadButton.innerHTML = originalText;
     }
 }
 
@@ -409,17 +450,39 @@ async function clearAllContacts() {
 
 // Update contacts list display
 function updateContactsList() {
+    // Apply search and filter first
+    applySearchAndFilter();
+    
     const contactsList = document.getElementById('contactsList');
     const contactCount = document.getElementById('contactCount');
     
     contactCount.textContent = contacts.length;
     
+    // Update header stats as well
+    updateHeaderStats();
+    
     if (contacts.length === 0) {
         contactsList.innerHTML = '<p class="text-muted">Belum ada kontak. Upload file atau tambah manual.</p>';
+        updatePaginationInfo(0, 0, 0);
+        document.getElementById('pagination').innerHTML = '';
         return;
     }
     
-    const contactsHTML = contacts.map(contact => {
+    // Calculate pagination
+    const totalItems = filteredContacts.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const currentContacts = filteredContacts.slice(startIndex, endIndex);
+    
+    if (currentContacts.length === 0 && currentPage > 1) {
+        currentPage = 1;
+        updateContactsList();
+        return;
+    }
+    
+    // Generate contacts HTML
+    const contactsHTML = currentContacts.map(contact => {
         let statusBadge = '';
         let actionButtons = '';
         
@@ -453,15 +516,19 @@ function updateContactsList() {
                 break;
         }
         
+        // Highlight search terms
+        const highlightedName = highlightSearchTerm(contact.name, searchTerm);
+        const highlightedPhone = highlightSearchTerm(contact.phone, searchTerm);
+        
         return `
             <div class="contact-item card mb-2">
                 <div class="card-body py-2">
                     <div class="row align-items-center">
                         <div class="col-md-3">
-                            <strong>${contact.name}</strong>
+                            <strong>${highlightedName}</strong>
                         </div>
                         <div class="col-md-2">
-                            ${contact.phone}
+                            ${highlightedPhone}
                         </div>
                         <div class="col-md-3">
                             ${statusBadge}
@@ -481,6 +548,10 @@ function updateContactsList() {
     }).join('');
     
     contactsList.innerHTML = contactsHTML;
+    
+    // Update pagination info and controls
+    updatePaginationInfo(startIndex + 1, endIndex, totalItems);
+    updatePaginationControls(currentPage, totalPages);
 }
 
 // Send messages to all contacts
@@ -489,7 +560,7 @@ async function sendMessages() {
     const currentApiKey = document.getElementById('apiKey').value.trim();
     const currentSender = document.getElementById('sender').value.trim();
     
-    // Use session values as fallback, but prefer current form values
+    // Use stored values as fallback, but prefer current form values
     const useApiKey = currentApiKey || apiKey;
     const useSender = currentSender || sender;
     
@@ -536,6 +607,7 @@ async function sendMessages() {
     let processedCount = 0;
     let successCount = 0;
     let failedCount = 0;
+    let batchResults = []; // Collect all results for history
     
     // Update progress display
     function updateProgress() {
@@ -567,42 +639,46 @@ async function sendMessages() {
                 
                 const data = await response.json();
                 
-                if (response.ok && data.summary.success > 0) {
-                    successCount++;
-                    // Update local contact status
-                    const localContact = contacts.find(c => c.id === contact.id);
-                    if (localContact) {
-                        localContact.status = 'sent';
-                        localContact.sentAt = new Date().toISOString();
+                if (response.ok && data.results && data.results.length > 0) {
+                    // Add results to batch
+                    batchResults.push(...data.results);
+                    
+                    if (data.summary.success > 0) {
+                        successCount++;
+                        // Update local contact status
+                        const localContact = contacts.find(c => c.id === contact.id);
+                        if (localContact) {
+                            localContact.status = 'sent';
+                            localContact.sentAt = new Date().toISOString();
+                        }
+                    } else {
+                        failedCount++;
+                        // Update local contact status
+                        const localContact = contacts.find(c => c.id === contact.id);
+                        if (localContact) {
+                            localContact.status = 'failed';
+                            localContact.error = data.error || 'Unknown error';
+                        }
                     }
                 } else {
                     failedCount++;
-                    // Update local contact status
+                    // Update local contact status and add to batch results
                     const localContact = contacts.find(c => c.id === contact.id);
                     if (localContact) {
                         localContact.status = 'failed';
                         localContact.error = data.error || 'Unknown error';
                     }
+                    // Add failed result to batch
+                    batchResults.push({
+                        contact: contact,
+                        status: 'failed',
+                        error: data.error || 'Unknown error',
+                        message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                    });
                 }
                 
                 // Save contacts status to localStorage after each update
                 saveToLocalStorage();
-                
-                // Save to send history if this is the last contact or an error occurred
-                if (response.ok && data.results) {
-                    // Add to send history
-                    const historyEntry = {
-                        id: Date.now() + i,
-                        timestamp: new Date().toISOString(),
-                        template: messageTemplate,
-                        results: data.results,
-                        totalContacts: contacts.length,
-                        successCount: data.summary?.success || 0,
-                        failedCount: data.summary?.failed || 0
-                    };
-                    sendHistory.push(historyEntry);
-                    saveToLocalStorage();
-                }
                 
             } catch (error) {
                 console.error(`Error sending to ${contact.name}:`, error);
@@ -613,6 +689,13 @@ async function sendMessages() {
                     localContact.status = 'failed';
                     localContact.error = 'Network error';
                 }
+                // Add failed result to batch
+                batchResults.push({
+                    contact: contact,
+                    status: 'failed',
+                    error: 'Network error',
+                    message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                });
                 // Save contacts status to localStorage after each update
                 saveToLocalStorage();
             }
@@ -641,6 +724,21 @@ async function sendMessages() {
                 await new Promise(resolve => setTimeout(resolve, delayTime));
                 clearInterval(countdownInterval);
             }
+        }
+        
+        // Save batch results to send history
+        if (batchResults.length > 0) {
+            const historyEntry = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                template: messageTemplate,
+                results: batchResults,
+                totalContacts: processedCount,
+                successCount: successCount,
+                failedCount: failedCount
+            };
+            sendHistory.push(historyEntry);
+            saveToLocalStorage();
         }
         
         // Show final results
@@ -719,6 +817,21 @@ async function sendMessageToContact(contactId) {
             saveToLocalStorage();
             updateContactsList();
             
+            // Save to send history for individual contact
+            if (data.results && data.results.length > 0) {
+                const historyEntry = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    template: messageTemplate,
+                    results: data.results,
+                    totalContacts: 1,
+                    successCount: data.summary?.success || 0,
+                    failedCount: data.summary?.failed || 0
+                };
+                sendHistory.push(historyEntry);
+                saveToLocalStorage();
+            }
+            
             const contact = contacts.find(c => c.id === contactId);
             const statusText = data.summary.success > 0 ? 'berhasil' : 'gagal';
             showAlert(`Pesan ke ${contact.name} ${statusText} dikirim`, data.summary.success > 0 ? 'success' : 'danger');
@@ -743,19 +856,21 @@ async function resetContactStatus(contactId) {
     }
     
     try {
-        const response = await fetch(`/api/reset-contact-status/${contactId}`, {
-            method: 'POST'
-        });
+        const contact = contacts.find(c => c.id === parseInt(contactId));
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            contacts = data.contacts;
-            updateContactsList();
-            showAlert(data.message, 'success');
-        } else {
-            showAlert(data.error || 'Gagal reset status kontak', 'danger');
+        if (!contact) {
+            showAlert('Kontak tidak ditemukan', 'danger');
+            return;
         }
+        
+        contact.status = 'pending';
+        delete contact.sentAt;
+        delete contact.error;
+        delete contact.response;
+        
+        saveToLocalStorage();
+        updateContactsList();
+        showAlert('Status kontak berhasil direset', 'success');
         
     } catch (error) {
         showAlert('Error resetting contact status', 'danger');
@@ -790,10 +905,61 @@ async function resetAllStatus() {
 // Download report
 async function downloadReport() {
     try {
-        const response = await fetch('/api/download-report');
+        console.log('=== DOWNLOAD REPORT DEBUG ===');
+        console.log('sendHistory:', sendHistory);
+        console.log('sendHistory type:', typeof sendHistory);
+        console.log('sendHistory length:', sendHistory.length);
+        console.log('sendHistory is array:', Array.isArray(sendHistory));
+        
+        // Try to get from localStorage directly if empty
+        if (!sendHistory || sendHistory.length === 0) {
+            console.log('sendHistory empty, checking localStorage directly...');
+            const directHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
+            const oldHistory = localStorage.getItem('wa_bot_send_history');
+            console.log('Direct localStorage HISTORY:', directHistory);
+            console.log('Old localStorage key:', oldHistory);
+            
+            if (directHistory) {
+                sendHistory = JSON.parse(directHistory);
+                console.log('Loaded from direct localStorage:', sendHistory.length, 'entries');
+            } else if (oldHistory) {
+                sendHistory = JSON.parse(oldHistory);
+                console.log('Loaded from old localStorage key:', sendHistory.length, 'entries');
+                // Migrate to new key
+                localStorage.setItem(STORAGE_KEYS.HISTORY, oldHistory);
+                localStorage.removeItem('wa_bot_send_history');
+            }
+        }
+        
+        if (!sendHistory || sendHistory.length === 0) {
+            showAlert('Tidak ada riwayat pengiriman untuk diunduh. Silakan kirim pesan terlebih dahulu.', 'warning');
+            return;
+        }
+        
+        console.log('Final sendHistory for download:', sendHistory);
+        console.log('sendHistory length for API:', sendHistory.length);
+        
+        const response = await fetch('/api/download-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sendHistory })
+        });
+        
+        console.log('Download response status:', response.status);
+        console.log('Download response ok:', response.ok);
         
         if (response.ok) {
             const blob = await response.blob();
+            console.log('Blob size:', blob.size);
+            console.log('Blob type:', blob.type);
+            
+            if (blob.size === 0) {
+                showAlert('File laporan kosong. Mungkin tidak ada data yang valid.', 'warning');
+                return;
+            }
+            
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -805,8 +971,16 @@ async function downloadReport() {
             
             showAlert('Laporan berhasil diunduh', 'success');
         } else {
-            const data = await response.json();
-            showAlert(data.error || 'Gagal mengunduh laporan', 'danger');
+            let errorText = '';
+            try {
+                const data = await response.json();
+                errorText = data.error || 'Unknown error';
+                console.error('Download failed with JSON error:', data);
+            } catch (jsonError) {
+                errorText = await response.text();
+                console.error('Download failed with text error:', errorText);
+            }
+            showAlert(`Gagal mengunduh laporan: ${errorText}`, 'danger');
         }
         
     } catch (error) {
@@ -818,15 +992,9 @@ async function downloadReport() {
 // Load send history
 async function loadSendHistory() {
     try {
-        const response = await fetch('/api/send-history');
-        const data = await response.json();
-        
-        if (response.ok) {
-            sendHistory = data.history;
-            displaySendHistory();
-        } else {
-            showAlert(data.error || 'Gagal memuat riwayat', 'danger');
-        }
+        console.log('Loading send history, current sendHistory:', sendHistory);
+        // History is already loaded from localStorage, just display it
+        displaySendHistory();
         
     } catch (error) {
         showAlert('Error loading send history', 'danger');
@@ -837,6 +1005,9 @@ async function loadSendHistory() {
 // Display send history
 function displaySendHistory() {
     const historyDiv = document.getElementById('sendHistory');
+    
+    console.log('Displaying send history, sendHistory array:', sendHistory);
+    console.log('sendHistory length:', sendHistory.length);
     
     if (sendHistory.length === 0) {
         historyDiv.innerHTML = '<p class="text-muted">Belum ada riwayat pengiriman.</p>';
@@ -923,3 +1094,350 @@ function clearAllData() {
         }
     }
 }
+
+// ========== Search, Filter, and Pagination Functions ==========
+
+// Apply search and filter to contacts
+function applySearchAndFilter() {
+    filteredContacts = contacts.filter(contact => {
+        // Apply search filter
+        let matchesSearch = true;
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            matchesSearch = contact.name.toLowerCase().includes(searchLower) || 
+                           contact.phone.toLowerCase().includes(searchLower);
+        }
+        
+        // Apply status filter
+        let matchesStatus = true;
+        if (statusFilter) {
+            matchesStatus = contact.status === statusFilter;
+        }
+        
+        return matchesSearch && matchesStatus;
+    });
+}
+
+// Search contacts function called from HTML
+function searchContacts() {
+    searchTerm = document.getElementById('searchContacts').value.trim();
+    currentPage = 1; // Reset to first page
+    updateContactsList();
+}
+
+// Filter contacts by status
+function filterContacts() {
+    statusFilter = document.getElementById('statusFilter').value;
+    currentPage = 1; // Reset to first page
+    updateContactsList();
+}
+
+// Change items per page
+function changeItemsPerPage() {
+    itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
+    currentPage = 1; // Reset to first page
+    updateContactsList();
+}
+
+// Highlight search terms in text
+function highlightSearchTerm(text, term) {
+    if (!term) return text;
+    
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<span class="search-highlight">$1</span>');
+}
+
+// Update pagination info
+function updatePaginationInfo(from, to, total) {
+    document.getElementById('showingFrom').textContent = from;
+    document.getElementById('showingTo').textContent = to;
+    document.getElementById('totalContacts').textContent = total;
+}
+
+// Update pagination controls
+function updatePaginationControls(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    if (currentPage > 1) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${currentPage - 1}); return false;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        `;
+    }
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(1); return false;">1</a>
+            </li>
+        `;
+        if (startPage > 2) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${totalPages}); return false;">${totalPages}</a>
+            </li>
+        `;
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${currentPage + 1}); return false;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        `;
+    }
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+// Go to specific page
+function goToPage(page) {
+    currentPage = page;
+    updateContactsList();
+    
+    // Scroll to top of contacts list
+    document.getElementById('contactsListContainer').scrollTop = 0;
+}
+
+// ========== Footer Interactions ==========
+
+// Initialize footer interactions
+function initFooterInteractions() {
+    // Add hover effects to tech stack items
+    const techItems = document.querySelectorAll('.tech-item');
+    techItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(5px)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+    
+    // Add click effect to version badge
+    const versionBadge = document.querySelector('.version-info .badge');
+    if (versionBadge) {
+        versionBadge.addEventListener('click', function() {
+            showAlert('WhatsApp Bulk Sender v2.0.0 - Stable Release', 'info');
+        });
+    }
+    
+    // Add stats counter animation when footer is visible
+    const footer = document.querySelector('footer');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateStatsCounters();
+            }
+        });
+    }, { threshold: 0.1 });
+    
+    if (footer) {
+        observer.observe(footer);
+    }
+}
+
+// Animate stats counters (if we had any)
+function animateStatsCounters() {
+    // This could be expanded to show app statistics
+    // For now, just add a subtle animation to the heart
+    const heart = document.querySelector('.fa-heart');
+    if (heart) {
+        heart.style.animation = 'heartbeat 1.5s ease-in-out infinite';
+    }
+}
+
+// Easter egg: Console message for developers
+console.log(
+    '%c🚀 WhatsApp Bulk Sender v2.0.0 🚀', 
+    'color: #25D366; font-size: 16px; font-weight: bold;'
+);
+console.log(
+    '%cDeveloped by Azhar Azziz | GitHub: @azharazziz', 
+    'color: #128C7E; font-size: 12px;'
+);
+console.log(
+    '%cFeatures: CSV/TXT/VCF Upload, Search, Pagination, ZAPIN API Integration', 
+    'color: #075E54; font-size: 10px;'
+);
+
+// ========== Header Navigation Functions ==========
+
+// Initialize header functionality
+function initHeaderFunctionality() {
+    updateHeaderStats();
+    updateApiStatus();
+    
+    // Update stats periodically
+    setInterval(updateHeaderStats, 5000);
+    
+    // Update API status when credentials change with debouncing
+    const apiKeyInput = document.getElementById('apiKey');
+    const senderInput = document.getElementById('sender');
+    
+    let updateTimeout;
+    const debouncedUpdate = () => {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(updateApiStatus, 300);
+    };
+    
+    if (apiKeyInput) {
+        apiKeyInput.addEventListener('input', debouncedUpdate);
+        apiKeyInput.addEventListener('blur', updateApiStatus);
+    }
+    if (senderInput) {
+        senderInput.addEventListener('input', debouncedUpdate);
+        senderInput.addEventListener('blur', updateApiStatus);
+    }
+}
+
+// Update header statistics
+function updateHeaderStats() {
+    const totalContacts = contacts.length;
+    const sentCount = contacts.filter(c => c.status === 'sent').length;
+    const pendingCount = contacts.filter(c => c.status === 'pending').length;
+    
+    // Update header counters
+    const headerContactCount = document.getElementById('headerContactCount');
+    const headerSentCount = document.getElementById('headerSentCount');
+    const headerPendingCount = document.getElementById('headerPendingCount');
+    
+    if (headerContactCount) headerContactCount.textContent = totalContacts;
+    if (headerSentCount) headerSentCount.textContent = sentCount;
+    if (headerPendingCount) headerPendingCount.textContent = pendingCount;
+}
+
+// Update API status indicator
+function updateApiStatus() {
+    const apiStatusDot = document.getElementById('apiStatus');
+    const apiStatusText = document.getElementById('apiStatusText');
+    
+    // Get current values from inputs or use stored values
+    const currentApiKey = document.getElementById('apiKey')?.value.trim() || apiKey;
+    const currentSender = document.getElementById('sender')?.value.trim() || sender;
+    
+    const hasApiKey = currentApiKey && currentApiKey.length > 0;
+    const hasSender = currentSender && currentSender.length > 0;
+    
+    if (hasApiKey && hasSender) {
+        if (apiStatusDot) {
+            apiStatusDot.className = 'status-dot online';
+        }
+        if (apiStatusText) {
+            apiStatusText.textContent = 'ZAPIN Ready';
+        }
+    } else {
+        if (apiStatusDot) {
+            apiStatusDot.className = 'status-dot offline';
+        }
+        if (apiStatusText) {
+            apiStatusText.textContent = 'Setup Required';
+        }
+    }
+}
+
+// Smooth scroll to section
+function scrollToSection(sectionId) {
+    const element = document.getElementById(sectionId);
+    if (element) {
+        const headerHeight = document.querySelector('.custom-navbar').offsetHeight;
+        const elementPosition = element.offsetTop - headerHeight - 20;
+        
+        window.scrollTo({
+            top: elementPosition,
+            behavior: 'smooth'
+        });
+        
+        // Update active nav link
+        updateActiveNavLink(sectionId);
+    }
+}
+
+// Scroll to top
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+    updateActiveNavLink('api-config');
+}
+
+// Update active navigation link
+function updateActiveNavLink(activeSection) {
+    // Remove active class from all nav links
+    document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // Add active class to current section link
+    const sectionMap = {
+        'api-config': 0,
+        'contacts': 1,
+        'messaging': 2,
+        'reports': 3
+    };
+    
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+    const linkIndex = sectionMap[activeSection];
+    if (navLinks[linkIndex]) {
+        navLinks[linkIndex].classList.add('active');
+    }
+}
+
+// Scroll spy to update active navigation
+window.addEventListener('scroll', function() {
+    const sections = ['api-config', 'contacts', 'messaging', 'reports'];
+    const headerHeight = document.querySelector('.custom-navbar').offsetHeight;
+    
+    let currentSection = 'api-config';
+    
+    sections.forEach(sectionId => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            const elementTop = element.offsetTop - headerHeight - 50;
+            const elementBottom = elementTop + element.offsetHeight;
+            
+            if (window.scrollY >= elementTop && window.scrollY < elementBottom) {
+                currentSection = sectionId;
+            }
+        }
+    });
+    
+    updateActiveNavLink(currentSection);
+});
