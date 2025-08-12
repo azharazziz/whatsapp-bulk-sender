@@ -25,12 +25,31 @@ const STORAGE_KEYS = {
 document.addEventListener('DOMContentLoaded', function() {
     loadFromLocalStorage();
     updateTemplatePreview();
+    updateSaveButtonState(); // Initialize save button state
     
     // Add event listeners
-    document.getElementById('messageTemplate').addEventListener('input', updateTemplatePreview);
+    document.getElementById('messageTemplate').addEventListener('input', function() {
+        updateTemplatePreview(); // Update preview and button state
+    });
     
-    // Auto-save to localStorage when data changes
-    window.addEventListener('beforeunload', saveToLocalStorage);
+    // Add keyboard shortcuts for formatting
+    document.getElementById('messageTemplate').addEventListener('keydown', handleKeyboardShortcuts);
+    
+    // Auto-save to localStorage when data changes (but not template - only on manual save)
+    window.addEventListener('beforeunload', function(e) {
+        saveToLocalStorage();
+        
+        // Warn user if template is not saved
+        const currentTemplate = document.getElementById('messageTemplate').value;
+        const isTemplateSaved = currentTemplate === messageTemplate;
+        
+        if (!isTemplateSaved && currentTemplate) {
+            const message = 'Template pesan belum disimpan. Apakah Anda yakin ingin keluar?';
+            e.preventDefault();
+            e.returnValue = message;
+            return message;
+        }
+    });
     
     // Initialize footer interactions
     initFooterInteractions();
@@ -38,6 +57,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize header functionality
     initHeaderFunctionality();
 });
+
+// Handle keyboard shortcuts for formatting
+function handleKeyboardShortcuts(event) {
+    // Check if Ctrl/Cmd is pressed
+    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+    
+    if (!isCtrlOrCmd) return;
+    
+    const textarea = event.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const hasSelection = start !== end;
+    
+    if (!hasSelection) return;
+    
+    let preventDefault = false;
+    
+    switch (event.key.toLowerCase()) {
+        case 'b': // Ctrl+B for bold
+            event.preventDefault();
+            applyFormatting('bold');
+            preventDefault = true;
+            break;
+        case 'i': // Ctrl+I for italic
+            event.preventDefault();
+            applyFormatting('italic');
+            preventDefault = true;
+            break;
+        case 'u': // Ctrl+U for strikethrough (since there's no standard)
+            event.preventDefault();
+            applyFormatting('strikethrough');
+            preventDefault = true;
+            break;
+        case 'k': // Ctrl+K for monospace
+            event.preventDefault();
+            applyFormatting('monospace');
+            preventDefault = true;
+            break;
+    }
+    
+    return !preventDefault;
+}
 
 // Save data to localStorage
 function saveToLocalStorage() {
@@ -68,7 +129,7 @@ function loadFromLocalStorage() {
         const oldHistory = localStorage.getItem(oldHistoryKey);
         
         contacts = savedContacts ? JSON.parse(savedContacts) : [];
-        messageTemplate = savedTemplate || 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+        messageTemplate = savedTemplate || 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
         sendHistory = savedHistory ? JSON.parse(savedHistory) : (oldHistory ? JSON.parse(oldHistory) : []);
         apiKey = savedApiKey || '';
         sender = savedSender || '';
@@ -104,7 +165,7 @@ function loadFromLocalStorage() {
         
         // Use defaults if localStorage fails
         contacts = [];
-        messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+        messageTemplate = 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
         sendHistory = [];
         apiKey = '';
         sender = '';
@@ -142,25 +203,236 @@ function showAlert(message, type = 'info') {
 // Update template preview and save to localStorage
 function updateTemplatePreview() {
     const template = document.getElementById('messageTemplate').value;
-    messageTemplate = template; // Update global variable
-    saveToLocalStorage(); // Auto-save to localStorage
+    
+    // Don't change templateSaved here - it should only be changed in specific functions
+    // This function is called for preview updates, not to determine save status
+    
+    // Update save button state
+    updateSaveButtonState();
+    
+    // Only auto-save if template hasn't changed much (to avoid constant saving)
+    // We'll save on manual save or when leaving page
     
     if (!template) {
         document.getElementById('templatePreview').textContent = 'Template kosong...';
         return;
     }
-    
-    // Clean up excessive whitespace and replace template variables
+
+    // Create WhatsApp formatted preview
     const preview = template
         .replace(/\r\n/g, '\n') // Normalize line breaks
         .replace(/\n{3,}/g, '\n\n') // Replace 3+ consecutive line breaks with 2
         .replace(/ {2,}/g, ' ') // Replace multiple spaces with single space
         .replace(/^\s+|\s+$/g, '') // Trim leading/trailing whitespace
         .replace(/{nama}/g, '[Nama Kontak]')
-        .replace(/{to}/g, '[Nama+dengan+plus]');
+        .replace(/{nama_url}/g, '[Nama+untuk+URL]')
+        .replace(/{to}/g, '[Nama+untuk+URL]'); // Keep backward compatibility
     
-    // Use textContent to preserve line breaks and prevent HTML injection
-    document.getElementById('templatePreview').textContent = preview;
+    // Apply WhatsApp formatting to preview
+    const formattedPreview = formatWhatsAppText(preview);
+    
+    // Update preview with HTML formatting
+    document.getElementById('templatePreview').innerHTML = formattedPreview;
+}
+
+// Update save button state based on template status
+function updateSaveButtonState() {
+    const saveButton = document.querySelector('button[onclick="updateTemplate()"]');
+    const currentTemplate = document.getElementById('messageTemplate').value;
+    
+    if (!saveButton) return;
+    
+    // Check if current template matches saved template
+    const isTemplateSaved = currentTemplate === messageTemplate;
+    
+    if (isTemplateSaved && currentTemplate) {
+        // Template is saved and not empty
+        saveButton.innerHTML = '<i class="fas fa-check text-success"></i> Template Tersimpan';
+        saveButton.className = 'btn btn-outline-success';
+        saveButton.style.backgroundColor = '';
+        saveButton.style.borderColor = '';
+        saveButton.style.color = '';
+        saveButton.disabled = true;
+    } else if (currentTemplate) {
+        // Template has changes, not saved - use orange background with white text for better contrast
+        saveButton.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i><strong>Simpan Template</strong>';
+        saveButton.className = 'btn btn-warning text-dark';
+        saveButton.style.backgroundColor = '#ffc107';
+        saveButton.style.borderColor = '#ffc107';
+        saveButton.style.color = '#000';
+        saveButton.disabled = false;
+    } else {
+        // Template is empty
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Simpan Template';
+        saveButton.className = 'btn btn-secondary';
+        saveButton.style.backgroundColor = '';
+        saveButton.style.borderColor = '';
+        saveButton.style.color = '';
+        saveButton.disabled = true;
+    }
+}
+
+// Convert WhatsApp formatting to HTML
+function formatWhatsAppText(text) {
+    let formatted = text;
+    
+    // Bold: *text* -> <span class="wa-bold">text</span>
+    formatted = formatted.replace(/\*([^*\n]+)\*/g, '<span class="wa-bold">$1</span>');
+    
+    // Italic: _text_ -> <span class="wa-italic">text</span>
+    formatted = formatted.replace(/_([^_\n]+)_/g, '<span class="wa-italic">$1</span>');
+    
+    // Strikethrough: ~text~ -> <span class="wa-strikethrough">text</span>
+    formatted = formatted.replace(/~([^~\n]+)~/g, '<span class="wa-strikethrough">$1</span>');
+    
+    // Monospace: ```text``` -> <span class="wa-monospace">text</span>
+    formatted = formatted.replace(/```([^`]+)```/g, '<span class="wa-monospace">$1</span>');
+    
+    // Convert line breaks to <br> tags
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    return formatted;
+}
+
+// Apply formatting to selected text in textarea
+function applyFormatting(type) {
+    const textarea = document.getElementById('messageTemplate');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    if (!selectedText) {
+        showAlert('Pilih teks yang ingin diformat terlebih dahulu', 'warning');
+        return;
+    }
+    
+    let formattedText = '';
+    
+    switch (type) {
+        case 'bold':
+            formattedText = `*${selectedText}*`;
+            break;
+        case 'italic':
+            formattedText = `_${selectedText}_`;
+            break;
+        case 'strikethrough':
+            formattedText = `~${selectedText}~`;
+            break;
+        case 'monospace':
+            formattedText = `\`\`\`${selectedText}\`\`\``;
+            break;
+    }
+    
+    // Replace selected text with formatted text
+    const newValue = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+    textarea.value = newValue;
+    
+    // Set cursor position after the formatted text
+    const newCursorPos = start + formattedText.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // Update preview
+    updateTemplatePreview();
+    
+    // Focus back to textarea
+    textarea.focus();
+    
+    // Template has been modified, update preview
+    updateTemplatePreview();
+}
+
+// Show formatting help
+function showFormattingHelp() {
+    const helpElement = document.getElementById('formattingHelp');
+    if (helpElement.classList.contains('show')) {
+        helpElement.classList.remove('show');
+    } else {
+        helpElement.classList.add('show');
+    }
+}
+
+// Preview message with WhatsApp formatting
+function previewWhatsAppFormat() {
+    const template = document.getElementById('messageTemplate').value;
+    
+    if (!template) {
+        showAlert('Template pesan kosong', 'warning');
+        return;
+    }
+    
+    // Create a modal for full preview
+    const modalHtml = `
+        <div class="modal fade" id="formatPreviewModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="fab fa-whatsapp me-2"></i>Preview Format WhatsApp
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-code me-1"></i>Raw Text:</h6>
+                                <pre class="bg-light p-3 rounded" style="white-space: pre-wrap; font-size: 14px;">${template.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fab fa-whatsapp me-1"></i>WhatsApp Preview:</h6>
+                                <div class="whatsapp-preview">${formatWhatsAppText(template.replace(/{nama}/g, 'John Doe').replace(/{nama_url}/g, 'John+Doe').replace(/{to}/g, 'John+Doe'))}</div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h6><i class="fas fa-info-circle me-1"></i>Format Yang Didukung:</h6>
+                            <div class="row">
+                                <div class="col-md-3 mb-2">
+                                    <small><strong>*Bold*</strong> → <strong>Bold</strong></small>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small><strong>_Italic_</strong> → <em>Italic</em></small>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small><strong>~Strike~</strong> → <del>Strike</del></small>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small><strong>\`\`\`Code\`\`\`</strong> → <code>Code</code></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                        <button type="button" class="btn btn-success" onclick="copyFormattedText()" data-bs-dismiss="modal">
+                            <i class="fas fa-copy me-1"></i>Copy Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('formatPreviewModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('formatPreviewModal'));
+    modal.show();
+}
+
+// Copy formatted text to clipboard
+function copyFormattedText() {
+    const template = document.getElementById('messageTemplate').value;
+    navigator.clipboard.writeText(template).then(() => {
+        showAlert('Template berhasil disalin ke clipboard', 'success');
+    }).catch(() => {
+        showAlert('Gagal menyalin template', 'danger');
+    });
 }
 
 // Load quick templates
@@ -169,95 +441,81 @@ function loadQuickTemplate(type) {
     
     switch (type) {
         case 'formal':
-            template = `Kepada Yth. {nama},
+            template = `Kepada Yth. *{nama}*,
 
 Dengan hormat,
 
-Kami mengirimkan pesan ini untuk memberikan informasi kepada {to}.
+Kami mengirimkan pesan ini untuk memberikan informasi kepada _{nama}_.
 
 Jika ada pertanyaan lebih lanjut, silakan hubungi kami.
 
 Terima kasih atas perhatiannya.
 
 Hormat kami,
-Tim WhatsApp Bot`;
+*Tim WhatsApp Bot*`;
             break;
             
         case 'casual':
-            template = `Halo {nama}! 👋
+            template = `Halo *{nama}*! 👋
 
 Apa kabar?
 
-Kami ingin berbagi informasi menarik untuk {to}.
+Kami ingin berbagi informasi menarik untuk _{nama}_.
 
-Semoga bermanfaat ya!
+~Jangan sampai terlewat~ informasi penting ini!
 
 Salam hangat! 😊`;
             break;
             
         case 'promo':
-            template = `🎉 PROMO SPESIAL untuk {nama}! 🎉
+            template = `🎉 *PROMO SPESIAL* untuk *{nama}*! 🎉
 
-Dapatkan diskon 50% untuk {to}!
+Dapatkan _diskon 50%_ untuk {nama}!
 
 ✅ Berlaku terbatas
 ✅ Hanya hari ini
 ✅ Syarat dan ketentuan berlaku
 
-Buruan, jangan sampai terlewat!
+~Buruan, jangan sampai terlewat!~
+
+Kode Promo: \`\`\`SAVE50\`\`\`
 
 Info: wa.me/6281234567890`;
             break;
             
         case 'reminder':
-            template = `📅 REMINDER untuk {nama}
+            template = `📅 *REMINDER* untuk *{nama}*
 
 Jangan lupa:
 
-• Acara penting untuk {to}
-• Tanggal: [Isi tanggal]
-• Waktu: [Isi waktu]
-• Lokasi: [Isi lokasi]
+• Acara penting untuk _{nama}_
+• Tanggal: \`\`\`[Isi tanggal]\`\`\`
+• Waktu: \`\`\`[Isi waktu]\`\`\`
+• Lokasi: \`\`\`[Isi lokasi]\`\`\`
+
+~Harap konfirmasi kehadiran~
 
 Terima kasih! 🙏`;
             break;
             
         case 'wedding':
-            template = `💒 UNDANGAN PERNIKAHAN 💒
+            template = `Hai *{nama}* 👋
 
-Bismillahirrahmanirrahim
+*Alhamdulillah*, insyaAllah kami akan melangsungkan _akad & resepsi pernikahan_ pada *[Hari, Tanggal Singkat]* di *[Kota/Daerah Singkat]* 🥰
 
-Assalamu'alaikum Wr. Wb.
+Kami berharap _{nama}_ bisa hadir dan berbagi kebahagiaan bersama kami 💐
 
-Dengan memohon rahmat dan ridho Allah SWT, kami mengundang {nama} untuk hadir dalam acara pernikahan:
+Detail lengkap waktu, lokasi, dan info acara bisa dilihat di sini:
+🌐 *link-undangan-anda.com/?to={nama_url}*
 
-👰🤵 PENGANTIN:
-[Nama Mempelai Wanita] & [Nama Mempelai Pria]
+_Doa dan kehadiranmu sangat berarti untuk kami_ 🤍
 
-📅 AKAD NIKAH:
-Hari: [Hari, Tanggal]
-Waktu: [Waktu] WIB
-Tempat: [Alamat Akad]
-
-🎉 RESEPSI:
-Hari: [Hari, Tanggal]
-Waktu: [Waktu] WIB
-Tempat: [Alamat Resepsi]
-
-Untuk detail lainnya dapat mengakses tautan berikut:
-[Link ke undangan online]/?to={to}
-
-Merupakan kehormatan bagi kami apabila {nama} berkenan hadir memberikan doa restu.
-
-Jazakumullahu khairan katsiiran
-Wassalamu'alaikum Wr. Wb.
-
-❤️ Keluarga [Nama Keluarga]`;
+Terima kasih! ✨`;
             break;
     }
     
     document.getElementById('messageTemplate').value = template;
-    updateTemplatePreview();
+    updateTemplatePreview(); // This will show unsaved status
 }
 
 // Update message template
@@ -270,10 +528,10 @@ async function updateTemplate() {
     }
     
     try {
-        messageTemplate = template;
+        messageTemplate = template; // Save to global variable
         saveToLocalStorage();
         showAlert('Template pesan berhasil disimpan', 'success');
-        updateTemplatePreview();
+        updateTemplatePreview(); // This will update the button state
         
     } catch (error) {
         showAlert('Error updating template', 'danger');
@@ -579,6 +837,21 @@ async function sendMessages() {
         return;
     }
     
+    // Check if template is saved
+    const currentTemplate = document.getElementById('messageTemplate').value;
+    const isTemplateSaved = currentTemplate === messageTemplate;
+    
+    if (!isTemplateSaved) {
+        showAlert('Template pesan belum disimpan! Silakan simpan template terlebih dahulu.', 'warning');
+        // Highlight save button
+        const saveButton = document.querySelector('button[onclick="updateTemplate()"]');
+        if (saveButton) {
+            saveButton.classList.add('btn-pulse');
+            setTimeout(() => saveButton.classList.remove('btn-pulse'), 2000);
+        }
+        return;
+    }
+    
     // Count pending contacts
     const pendingContacts = contacts.filter(c => c.status === 'pending');
     
@@ -673,7 +946,10 @@ async function sendMessages() {
                         contact: contact,
                         status: 'failed',
                         error: data.error || 'Unknown error',
-                        message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                        message: messageTemplate
+                            .replace(/{nama}/g, contact.name)
+                            .replace(/{nama_url}/g, contact.name.replace(/\s+/g, '+'))
+                            .replace(/{to}/g, contact.name.replace(/\s+/g, '+')) // Keep backward compatibility
                     });
                 }
                 
@@ -694,7 +970,10 @@ async function sendMessages() {
                     contact: contact,
                     status: 'failed',
                     error: 'Network error',
-                    message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                    message: messageTemplate
+                        .replace(/{nama}/g, contact.name)
+                        .replace(/{nama_url}/g, contact.name.replace(/\s+/g, '+'))
+                        .replace(/{to}/g, contact.name.replace(/\s+/g, '+')) // Keep backward compatibility
                 });
                 // Save contacts status to localStorage after each update
                 saveToLocalStorage();
@@ -1073,7 +1352,7 @@ function clearAllData() {
             
             // Reset all variables
             contacts = [];
-            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!';
+            messageTemplate = 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
             sendHistory = [];
             apiKey = '';
             sender = '';
@@ -1087,6 +1366,7 @@ function clearAllData() {
             updateTemplatePreview();
             
             showAlert('Semua data berhasil dihapus', 'success');
+            // Template is now saved since it matches default
             
         } catch (error) {
             console.error('Clear data error:', error);
