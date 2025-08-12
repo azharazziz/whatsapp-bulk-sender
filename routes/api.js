@@ -248,7 +248,8 @@ router.post('/send-messages', async (req, res) => {
                 const toParam = contact.name.replace(/\s+/g, '+');
                 const message = messageTemplate
                     .replace(/{nama}/g, nameParam)
-                    .replace(/{to}/g, toParam);
+                    .replace(/{nama_url}/g, toParam)
+                    .replace(/{to}/g, toParam); // Keep backward compatibility
                 
                 // ZAPIN API call
                 const response = await axios.post('https://zapin.my.id/send-message', {
@@ -305,7 +306,10 @@ router.post('/send-messages', async (req, res) => {
                     contact: contact,
                     status: 'failed',
                     error: contact.error,
-                    message: messageTemplate.replace(/{nama}/g, contact.name).replace(/{to}/g, contact.name.replace(/\s+/g, '+'))
+                    message: messageTemplate
+                        .replace(/{nama}/g, contact.name)
+                        .replace(/{nama_url}/g, contact.name.replace(/\s+/g, '+'))
+                        .replace(/{to}/g, contact.name.replace(/\s+/g, '+')) // Keep backward compatibility
                 });
             }
             
