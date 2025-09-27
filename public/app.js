@@ -1591,7 +1591,7 @@ console.log(
     'color: #128C7E; font-size: 12px;'
 );
 console.log(
-    '%cFeatures: CSV/TXT/VCF Upload, Search, Pagination, ZAPIN API Integration', 
+    '%cFeatures: CSV/TXT/VCF Upload, Search, Pagination, MPWA API Integration', 
     'color: #075E54; font-size: 10px;'
 );
 
@@ -1665,7 +1665,7 @@ function updateApiStatus() {
             apiStatusDot.className = 'status-dot online';
         }
         if (apiStatusText) {
-            apiStatusText.textContent = 'ZAPIN Ready';
+            apiStatusText.textContent = 'Ready';
         }
     } else {
         if (apiStatusDot) {
