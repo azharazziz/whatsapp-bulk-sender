@@ -576,7 +576,7 @@
                     <!-- API Status -->
                     <div class="status-indicator">
                         <span class="status-dot online" id="apiStatus"></span>
-                        <span id="apiStatusText">ZAPIN Ready</span>
+                        <span id="apiStatusText">Ready</span>
                     </div>
                     
                     <!-- Quick Stats -->
@@ -649,7 +649,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label for="apiKey" class="form-label">API Key</label>
-                                <input type="password" class="form-control" id="apiKey" placeholder="Masukkan API Key ZAPIN">
+                                <input type="password" class="form-control" id="apiKey" placeholder="Masukkan API Key">
                             </div>
                             <div class="col-md-4">
                                 <label for="sender" class="form-label">Sender</label>
@@ -668,12 +668,18 @@
                             </small>
                         </div>
 
-                        <!-- Information Box for ZAPIN Registration -->
+                        <!-- Information Box for Registration -->
                         <div class="alert alert-info mt-3" role="alert">
-                            <h6 class="alert-heading mb-2">Cara Mendapatkan Kredensial ZAPIN</h6>
+                            <h6 class="alert-heading mb-2">Cara Mendapatkan Kredensial</h6>
                             <p class="mb-2">
-                                <strong>API Key</strong> dan <strong>Sender Number</strong> dapat diperoleh dengan mendaftar di ZAPIN terlebih dahulu.
+                                <strong>API URL, API Key</strong> dan <strong>Sender Number</strong> dapat diperoleh dengan mendaftar pada penyedia WhatsApp API berbasis MPWA seperti <a href="mpwa.to">MPWA by Magd Almuntaser</a>, <a href="https://zapin.my.id">ZAPIN</a>, ataupun yang lain yang berbasis MPWA dari M-Pedia.
                             </p>
+                            <div class="d-flex align-items-center">
+                                <a href="https://mpwa.to" target="_blank" class="btn btn-outline-primary btn-sm me-3">
+                                    Daftar di MPWA.to
+                                </a>
+                                <small class="text-muted">Situs resmi MPWA by Magd Almuntaser</small>
+                            </div>
                             <div class="d-flex align-items-center">
                                 <a href="https://zapin.my.id" target="_blank" class="btn btn-outline-primary btn-sm me-3">
                                     Daftar di Zapin.my.id
@@ -999,7 +1005,7 @@
                         </h5>
                         <p class="footer-text mb-3">
                             Solusi profesional untuk mengirim pesan WhatsApp secara massal dengan mudah dan efisien. 
-                            Didukung oleh ZAPIN API yang terpercaya.
+                            Didukung oleh oleh MPWA WhatsApp API berbasis web.
                         </p>
                         <div class="footer-badges">
                             <span class="badge bg-success me-2 mb-2">
@@ -1070,9 +1076,6 @@
                             <i class="fas fa-link me-2"></i>Links & Support
                         </h6>
                         <div class="footer-links mb-3">
-                            <a href="https://zapin.my.id" target="_blank" class="footer-link">
-                                <i class="fas fa-external-link-alt"></i> ZAPIN API
-                            </a>
                             <a href="https://github.com/azharazziz/whatsapp-bulk-sender" target="_blank" class="footer-link">
                                 <i class="fab fa-github"></i> GitHub Repository
                             </a>
