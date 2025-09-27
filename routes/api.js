@@ -265,13 +265,6 @@ router.post('/send-messages', async (req, res) => {
                     .replace(/{nama_url}/g, toParam)
                     .replace(/{to}/g, toParam); // Keep backward compatibility
                 
-                // Get the API URL from request
-                const { apiUrl } = req.body;
-                
-                if (!apiUrl) {
-                    throw new Error('API URL is required. Please configure your WhatsApp API endpoint.');
-                }
-                
                 // Dynamic API call
                 const response = await axios.post(apiUrl, {
                     api_key: apiKey,
