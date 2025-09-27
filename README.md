@@ -1,16 +1,17 @@
-# WhatsApp Bulk Sender - ZAPIN API
+# WhatsApp Bulk Sender - Multi-API Support
 
-![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-green.svg)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-serverless-orange.svg)
 
-Aplikasi modern untuk mengirim pesan WhatsApp secara massal menggunakan ZAPIN API. Dibangun dengan arsitektur serverless dan client-side storage untuk kemudahan deployment dan privasi maksimal.
+Aplikasi modern untuk mengirim pesan WhatsApp secara massal dengan dukungan multi-API provider. Kompatibel dengan berbagai provider WhatsApp API seperti ZAPIN, 360Dialog, Twilio, dan lainnya. Dibangun dengan arsitektur serverless dan client-side storage untuk kemudahan deployment dan privasi maksimal.
 
 ## ✨ Fitur Utama
 
 ### 🚀 **Core Features**
-- ✅ **ZAPIN API Integration** - Pengiriman WhatsApp menggunakan API resmi ZAPIN
+- ✅ **Multi-API Support** - Kompatibel dengan berbagai provider WhatsApp API (ZAPIN, MPWA.to, dll)
+- ✅ **Dynamic API URL** - Konfigurasi URL API sesuai provider yang digunakan
 - ✅ **Multi-format Upload** - Support CSV, TXT, dan vCard (.vcf) files
 - ✅ **Manual Contact Entry** - Tambah kontak satu per satu
 - ✅ **Smart Templates** - Variable replacement dengan `{nama}` dan `{to}`
@@ -36,18 +37,33 @@ Aplikasi modern untuk mengirim pesan WhatsApp secara massal menggunakan ZAPIN AP
 
 ## 🎯 **Prasyarat Penting**
 
-> **⚠️ WAJIB: Registrasi ZAPIN terlebih dahulu**
+> **⚠️ WAJIB: Registrasi provider WhatsApp API**
 
-Sebelum menggunakan aplikasi ini, Anda **HARUS**:
+Sebelum menggunakan aplikasi ini, Anda **HARUS** memiliki akun di salah satu provider WhatsApp API:
 
-1. **📝 Registrasi di [Zapin.my.id](https://zapin.my.id)**
-   - Buat akun di website resmi ZAPIN
-   - Verifikasi email dan lengkapi profil
+### **🔧 Provider WhatsApp API yang Didukung**
+
+#### **1. ZAPIN API (Default)**
+- **Website**: [Zapin.my.id](https://zapin.my.id)
+- **Keuntungan**: Mudah setup, dokumentasi lengkap
+- **API URL**: `https://whatsapp.azharazziz.my.id`
+
+#### **2. Provider Lainnya**
+- **MPWA**, dll
+- **API URL**: Sesuai dokumentasi provider masing-masing
+- **Format**: Harus kompatibel dengan endpoint `/send-message`
+
+### **📋 Langkah Setup**
+
+1. **📝 Pilih dan Registrasi Provider**
+   - Pilih provider WhatsApp API yang diinginkan
+   - Buat akun dan verifikasi identitas
    - Hubungkan nomor WhatsApp Business Anda
 
 2. **🔑 Dapatkan Kredensial**
-   - **API Key**: Dari dashboard ZAPIN setelah registrasi
-   - **Sender Number**: Nomor WhatsApp Business yang terdaftar di ZAPIN
+   - **API URL**: Base URL dari provider (contoh: `https://mpwa.to`)
+   - **API Key/Token**: Dari dashboard provider
+   - **Sender Number**: Nomor WhatsApp Business yang terdaftar
    - **Saldo/Kuota**: Pastikan akun memiliki saldo untuk pengiriman
 
 3. **📱 Setup WhatsApp Business**
@@ -55,7 +71,7 @@ Sebelum menggunakan aplikasi ini, Anda **HARUS**:
    - Nomor tersebut akan menjadi pengirim pesan
    - Pastikan nomor aktif dan bisa menerima pesan
 
-> 💡 **Info**: API Key dan Sender Number hanya bisa didapat melalui [Zapin.my.id](https://zapin.my.id). Tidak ada alternatif lain.
+> 💡 **Info**: Aplikasi ini fleksibel dan dapat digunakan dengan berbagai provider WhatsApp API selama format API-nya kompatibel.
 
 ## 🚀 **Quick Start**
 
@@ -86,12 +102,17 @@ http://localhost:3000
 
 **Langkah setup kredensial:**
 1. Buka aplikasi di browser
-2. Masuk ke section **"Konfigurasi API ZAPIN"**
-3. Masukkan **API Key** dari dashboard ZAPIN
-4. Masukkan **Sender** (nomor WhatsApp Business Anda)
-5. Klik **"Simpan Kredensial"**
+2. Masuk ke section **"Konfigurasi API WhatsApp"**
+3. Masukkan **API URL** provider yang digunakan (contoh: `https://whatsapp.azharazziz.my.id`)
+4. Masukkan **API Key** dari dashboard provider
+5. Masukkan **Sender** (nomor WhatsApp Business Anda)
+6. Klik **"Simpan Kredensial"**
 
-> 📋 **Cara mendapat kredensial**: Klik tombol "Daftar di Zapin.my.id" yang tersedia di aplikasi
+> 📋 **Contoh API URL untuk provider populer:**
+> - **ZAPIN**: `https://whatsapp.azharazziz.my.id`
+> - **360Dialog**: `https://waba-v2.360dialog.io`
+> - **Twilio**: `https://api.twilio.com`
+> - **Custom**: Sesuai dokumentasi provider Anda
 
 ### 2. **💬 Buat Template Pesan**
 
@@ -212,7 +233,7 @@ whatsapp-bulk-sender/
 |---------|---------|---------|
 | **express** | ^4.18.2 | Web framework untuk API server |
 | **multer** | ^1.4.5 | File upload handling (CSV/TXT/VCF) |
-| **axios** | ^1.4.0 | HTTP client untuk ZAPIN API |
+| **axios** | ^1.4.0 | HTTP client untuk MPWA API |
 | **cors** | ^2.8.5 | Cross-origin resource sharing |
 | **dotenv** | ^16.0.3 | Environment variables |
 
@@ -236,7 +257,8 @@ whatsapp-bulk-sender/
 ```javascript
 // Structure data yang tersimpan
 {
-  apiKey: "zapin_xxx123xxx",           // API Key ZAPIN
+  apiUrl: "https://whatsapp.azharazziz.my.id",  // URL API provider
+  apiKey: "zapin_xxx123xxx",           // API Key provider
   sender: "081234567890",              // Nomor sender
   contacts: [...],                     // Array kontak
   messageTemplate: "Template...",      // Template pesan
@@ -302,13 +324,13 @@ NODE_ENV=production
 
 ### **🚨 Common Issues & Solutions**
 
-#### **"API Key and Sender are required"**
+#### **"API URL, API Key and Sender are required"**
 **❌ Problem:** Error saat mencoba kirim pesan
 **✅ Solution:**
-1. Pastikan sudah registrasi di [Zapin.my.id](https://zapin.my.id)
-2. Dapatkan API Key yang valid dari dashboard ZAPIN
-3. Gunakan nomor WhatsApp Business yang terdaftar
-4. Periksa format: API Key biasanya dimulai dengan `zapin_`
+1. **API URL**: Pastikan URL API provider sudah benar (contoh: `https://whatsapp.azharazziz.my.id`)
+2. **API Key**: Dapatkan API Key yang valid dari dashboard provider
+3. **Sender**: Gunakan nomor WhatsApp Business yang terdaftar
+4. **Format**: Periksa format kredensial sesuai dokumentasi provider
 
 #### **"Only CSV, TXT and VCF files are allowed"**
 **❌ Problem:** Error saat upload file kontak
@@ -325,6 +347,15 @@ NODE_ENV=production
 3. **Cek status API** - Kunjungi dashboard ZAPIN untuk status layanan
 4. **Validasi nomor** - Pastikan format nomor benar (08xxx atau 628xxx)
 5. **Cek status sender** - Nomor sender harus aktif di ZAPIN
+
+#### **"Invalid API URL" atau "Connection failed"**
+**❌ Problem:** Error koneksi ke API provider
+**✅ Solution:**
+1. **Periksa URL**: Pastikan URL API benar dan lengkap (contoh: `https://api.example.com`)
+2. **HTTPS Required**: Pastikan menggunakan HTTPS, bukan HTTP
+3. **CORS Policy**: Beberapa provider memerlukan konfigurasi CORS
+4. **API Endpoint**: Pastikan endpoint `/send-message` tersedia di URL tersebut
+5. **Network Access**: Pastikan tidak ada firewall yang blokir akses
 
 #### **Kontak tidak muncul setelah upload vCard**
 **❌ Problem:** File vCard tidak terparsing
@@ -344,11 +375,11 @@ NODE_ENV=production
 
 ### **📞 Support & Help**
 
-**Untuk masalah ZAPIN API:**
-- 🌐 **Website**: [Zapin.my.id](https://zapin.my.id)
-- 📚 **Dokumentasi**: Dashboard ZAPIN untuk panduan API
-- 💬 **Support**: Hubungi customer service ZAPIN
-- 📊 **Status**: Cek status layanan di website ZAPIN
+**Untuk masalah API Provider:**
+- 🌐 **ZAPIN**: [Zapin.my.id](https://zapin.my.id) - Dokumentasi dan support
+- 📚 **MPWAto**: [mpwa.to](https://mpwa.to) - MPWA.to
+- 📞 **Provider Lain**: Sesuai dokumentasi masing-masing provider
+- 🔧 **Kompatibilitas**: Pastikan API format kompatibel dengan endpoint `/send-message`
 
 **Untuk masalah aplikasi:**
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/azharazziz/whatsapp-bulk-sender/issues)
