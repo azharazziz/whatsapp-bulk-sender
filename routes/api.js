@@ -252,7 +252,7 @@ router.post('/send-messages', async (req, res) => {
                     .replace(/{to}/g, toParam); // Keep backward compatibility
                 
                 // ZAPIN API call
-                const response = await axios.post('https://zapin.my.id/send-message', {
+                const response = await axios.post('https://whatsapp.azharazziz.my.id/send-message', {
                     api_key: apiKey,
                     sender: sender,
                     number: contact.phone,
@@ -457,7 +457,7 @@ router.post('/test-zapin', async (req, res) => {
         
         const testMessage = 'Test message from WhatsApp Bot';
         
-        const response = await axios.post('https://zapin.my.id/send-message', {
+        const response = await axios.post('https://whatsapp.azharazziz.my.id/send-message', {
             api_key: apiKey,
             sender: sender,
             number: testNumber,
