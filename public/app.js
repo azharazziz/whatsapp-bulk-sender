@@ -1071,12 +1071,13 @@ async function sendMessages() {
 async function sendMessageToContact(contactId) {
     const currentApiKey = document.getElementById('apiKey').value.trim();
     const currentSender = document.getElementById('sender').value.trim();
+    const currentApiUrl = document.getElementById('apiUrl').value.trim();
     
     const useApiKey = currentApiKey || apiKey;
     const useSender = currentSender || sender;
     
-    if (!useApiKey || !useSender) {
-        showAlert('API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
+    if (!useApiKey || !useSender || !apiUrl) {
+        showAlert('API URL, API Key, dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
         return;
     }
     
@@ -1100,6 +1101,7 @@ async function sendMessageToContact(contactId) {
             body: JSON.stringify({ 
                 apiKey: useApiKey, 
                 sender: useSender,
+                apiUrl: apiUrl,
                 contactId: contactId,
                 contacts: contacts,
                 messageTemplate: messageTemplate
