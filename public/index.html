@@ -643,9 +643,16 @@
                     <div class="card-body">
                         
                         <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="apiUrl" class="form-label">API URL</label>
+                                <input type="url" class="form-control" id="apiUrl" placeholder="Masukkan URL API (contoh: https://api.contoh.com)">
+                                <div class="form-text">URL lengkap ke endpoint API WhatsApp yang akan digunakan</div>
+                            </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6">
                                 <label for="apiKey" class="form-label">API Key</label>
-                                <input type="password" class="form-control" id="apiKey" placeholder="Masukkan API Key ZAPIN">
+                                <input type="password" class="form-control" id="apiKey" placeholder="Masukkan API Key">
                             </div>
                             <div class="col-md-6">
                                 <label for="sender" class="form-label">Sender</label>
@@ -664,17 +671,30 @@
                             </small>
                         </div>
 
-                        <!-- Information Box for ZAPIN Registration -->
+                        <!-- Information Box for API Configuration -->
                         <div class="alert alert-info mt-3" role="alert">
-                            <h6 class="alert-heading mb-2">Cara Mendapatkan Kredensial ZAPIN</h6>
+                            <h6 class="alert-heading mb-2">Konfigurasi API</h6>
                             <p class="mb-2">
-                                <strong>API Key</strong> dan <strong>Sender Number</strong> dapat diperoleh dengan mendaftar di ZAPIN terlebih dahulu.
+                                <strong>API URL:</strong> URL lengkap ke endpoint API WhatsApp yang akan digunakan<br>
+                                <strong>API Key:</strong> Token autentikasi dari penyedia layanan API<br>
+                                <strong>Sender:</strong> Nomor WhatsApp yang terdaftar di API
                             </p>
-                            <div class="d-flex align-items-center">
-                                <a href="https://zapin.my.id" target="_blank" class="btn btn-outline-primary btn-sm me-3">
-                                    Daftar di Zapin.my.id
-                                </a>
-                                <small class="text-muted">Situs resmi ZAPIN API</small>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Contoh Provider API WhatsApp:
+                                </small>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <a href="https://zapin.my.id" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-link"></i> ZAPIN API
+                                    </a>
+                                    <a href="https://ultramsg.com" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-link"></i> Ultramsg
+                                    </a>
+                                    <a href="https://wwebjs.dev" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-link"></i> whatsapp-web.js
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>

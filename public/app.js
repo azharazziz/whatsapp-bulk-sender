@@ -4,6 +4,7 @@ let messageTemplate = '';
 let sendHistory = [];
 let apiKey = '';
 let sender = '';
+let apiUrl = '';
 
 // Pagination and search variables
 let currentPage = 1;
@@ -18,7 +19,8 @@ const STORAGE_KEYS = {
     TEMPLATE: 'whatsapp_bot_template',
     HISTORY: 'whatsapp_bot_history',
     API_KEY: 'whatsapp_bot_api_key',
-    SENDER: 'whatsapp_bot_sender'
+    SENDER: 'whatsapp_bot_sender',
+    API_URL: 'whatsapp_bot_api_url'
 };
 
 // Initialize app
@@ -106,6 +108,7 @@ function saveToLocalStorage() {
         localStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(contacts));
         localStorage.setItem(STORAGE_KEYS.TEMPLATE, messageTemplate);
         localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(sendHistory));
+        localStorage.setItem(STORAGE_KEYS.API_URL, apiUrl);
         localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
         localStorage.setItem(STORAGE_KEYS.SENDER, sender);
         
@@ -121,6 +124,7 @@ function loadFromLocalStorage() {
         const savedContacts = localStorage.getItem(STORAGE_KEYS.CONTACTS);
         const savedTemplate = localStorage.getItem(STORAGE_KEYS.TEMPLATE);
         const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
+        const savedApiUrl = localStorage.getItem(STORAGE_KEYS.API_URL);
         const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
         const savedSender = localStorage.getItem(STORAGE_KEYS.SENDER);
         
@@ -131,6 +135,7 @@ function loadFromLocalStorage() {
         contacts = savedContacts ? JSON.parse(savedContacts) : [];
         messageTemplate = savedTemplate || 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
         sendHistory = savedHistory ? JSON.parse(savedHistory) : (oldHistory ? JSON.parse(oldHistory) : []);
+        apiUrl = savedApiUrl || '';
         apiKey = savedApiKey || '';
         sender = savedSender || '';
         
@@ -150,6 +155,7 @@ function loadFromLocalStorage() {
         });
         
         document.getElementById('messageTemplate').value = messageTemplate;
+        document.getElementById('apiUrl').value = apiUrl;
         document.getElementById('apiKey').value = apiKey;
         document.getElementById('sender').value = sender;
         
@@ -541,15 +547,25 @@ async function updateTemplate() {
 
 // Save API credentials (now saves locally)
 async function saveCredentials() {
+    const newApiUrl = document.getElementById('apiUrl').value.trim();
     const newApiKey = document.getElementById('apiKey').value.trim();
     const newSender = document.getElementById('sender').value.trim();
     
-    if (!newApiKey || !newSender) {
-        showAlert('API Key dan Sender harus diisi', 'warning');
+    if (!newApiUrl || !newApiKey || !newSender) {
+        showAlert('API URL, API Key, dan Sender harus diisi', 'warning');
+        return;
+    }
+    
+    // Validate API URL format
+    try {
+        new URL(newApiUrl);
+    } catch (e) {
+        showAlert('Format API URL tidak valid. Harap masukkan URL lengkap (contoh: https://api.contoh.com)', 'warning');
         return;
     }
     
     try {
+        apiUrl = newApiUrl;
         apiKey = newApiKey;
         sender = newSender;
         saveToLocalStorage();
@@ -817,13 +833,15 @@ async function sendMessages() {
     // Get current values from form (in case user hasn't saved them yet)
     const currentApiKey = document.getElementById('apiKey').value.trim();
     const currentSender = document.getElementById('sender').value.trim();
+    const currentApiUrl = document.getElementById('apiUrl').value.trim();
     
     // Use stored values as fallback, but prefer current form values
     const useApiKey = currentApiKey || apiKey;
     const useSender = currentSender || sender;
+    const useApiUrl = currentApiUrl || apiUrl;
     
-    if (!useApiKey || !useSender) {
-        showAlert('API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
+    if (!useApiKey || !useSender || !useApiUrl) {
+        showAlert('API URL, API Key, dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
         return;
     }
     
@@ -896,7 +914,7 @@ async function sendMessages() {
             
             try {
                 // Send message to individual contact
-                const response = await fetch('/api/send-messages', {
+                const response = await fetch(apiUrl || '/api/send-messages', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1354,6 +1372,7 @@ function clearAllData() {
             contacts = [];
             messageTemplate = 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
             sendHistory = [];
+            apiUrl = '';
             apiKey = '';
             sender = '';
             
@@ -1631,16 +1650,24 @@ function updateApiStatus() {
     // Get current values from inputs or use stored values
     const currentApiKey = document.getElementById('apiKey')?.value.trim() || apiKey;
     const currentSender = document.getElementById('sender')?.value.trim() || sender;
+    const currentApiUrl = document.getElementById('apiUrl')?.value.trim() || apiUrl;
     
     const hasApiKey = currentApiKey && currentApiKey.length > 0;
     const hasSender = currentSender && currentSender.length > 0;
+    const hasApiUrl = currentApiUrl && currentApiUrl.length > 0;
     
-    if (hasApiKey && hasSender) {
+    if (hasApiKey && hasSender && hasApiUrl) {
         if (apiStatusDot) {
             apiStatusDot.className = 'status-dot online';
         }
         if (apiStatusText) {
-            apiStatusText.textContent = 'ZAPIN Ready';
+            try {
+                const url = new URL(currentApiUrl);
+                const provider = url.hostname.split('.')[0].toUpperCase();
+                apiStatusText.textContent = `${provider} Ready`;
+            } catch (e) {
+                apiStatusText.textContent = 'API Ready';
+            }
         }
     } else {
         if (apiStatusDot) {

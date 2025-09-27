@@ -189,20 +189,34 @@ router.post('/add-contact', (req, res) => {
 // Reset all contacts status - Not needed for localStorage approach
 // Client will handle bulk status reset directly
 
-// Send messages using ZAPIN API
+// Send messages using dynamic API
 router.post('/send-messages', async (req, res) => {
     try {
         // Get data from request body (client-side storage)
         const { 
             apiKey, 
-            sender, 
-            contactId, 
+            sender,
+            apiUrl, 
+            contactId,
             contacts = [], 
-            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!' 
+            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!'
         } = req.body;
+        
+        if (!apiUrl) {
+            return res.status(400).json({ error: 'API URL is required. Please configure your WhatsApp API endpoint.' });
+        }
         
         if (!apiKey || !sender) {
             return res.status(400).json({ error: 'API Key and Sender are required. Please save them first.' });
+        }
+        
+        // Validate API URL if provided
+        if (apiUrl) {
+            try {
+                new URL(apiUrl);
+            } catch (e) {
+                return res.status(400).json({ error: 'Invalid API URL format' });
+            }
         }
         
         if (!contacts || contacts.length === 0) {
@@ -251,8 +265,15 @@ router.post('/send-messages', async (req, res) => {
                     .replace(/{nama_url}/g, toParam)
                     .replace(/{to}/g, toParam); // Keep backward compatibility
                 
-                // ZAPIN API call
-                const response = await axios.post('https://zapin.my.id/send-message', {
+                // Get the API URL from request
+                const { apiUrl } = req.body;
+                
+                if (!apiUrl) {
+                    throw new Error('API URL is required. Please configure your WhatsApp API endpoint.');
+                }
+                
+                // Dynamic API call
+                const response = await axios.post(apiUrl, {
                     api_key: apiKey,
                     sender: sender,
                     number: contact.phone,
@@ -266,8 +287,13 @@ router.post('/send-messages', async (req, res) => {
                 
                 console.log('ZAPIN API Response:', response.data); // Debug log
                 
-                // Check ZAPIN specific response format: { "status": true, "msg": "Message sent successfully!" }
-                if (response.data && response.data.status === true) {
+                // Handle different API response formats
+                const isSuccess = response.data?.status === true || // ZAPIN format
+                                response.data?.success === true || // Generic format 1
+                                response.data?.code === 200 || // Generic format 2
+                                response.status === 200; // HTTP status fallback
+                
+                if (isSuccess) {
                     contact.status = 'sent';
                     contact.sentAt = new Date().toISOString();
                     contact.response = response.data;
@@ -280,7 +306,14 @@ router.post('/send-messages', async (req, res) => {
                     });
                 } else {
                     contact.status = 'failed';
-                    contact.error = response.data?.msg || response.data?.message || response.data?.error || JSON.stringify(response.data) || 'Unknown error';
+                    // Try to extract error message from various common formats
+                    contact.error = response.data?.msg || // ZAPIN format
+                                  response.data?.message || // Common format
+                                  response.data?.error || // Common format
+                                  response.data?.error_message || // Alternative format
+                                  response.data?.description || // Alternative format
+                                  JSON.stringify(response.data) || 
+                                  'Unknown error';
                     
                     results.push({
                         contact: contact,
@@ -295,9 +328,18 @@ router.post('/send-messages', async (req, res) => {
                 contact.status = 'failed';
                 console.error('Send message error:', error.response?.data || error.message);
                 
-                // Better error handling for ZAPIN format
+                // Enhanced error handling for various API formats
                 if (error.response?.data) {
-                    contact.error = error.response.data.msg || error.response.data.message || error.response.data.error || JSON.stringify(error.response.data);
+                    contact.error = error.response.data.msg || // ZAPIN format
+                                  error.response.data.message || // Common format
+                                  error.response.data.error || // Common format
+                                  error.response.data.error_message || // Alternative format
+                                  error.response.data.description || // Alternative format
+                                  (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data));
+                } else if (error.code === 'ECONNREFUSED') {
+                    contact.error = 'Could not connect to API server';
+                } else if (error.code === 'ETIMEDOUT') {
+                    contact.error = 'Connection to API server timed out';
                 } else {
                     contact.error = error.message || 'Network error';
                 }
@@ -457,7 +499,20 @@ router.post('/test-zapin', async (req, res) => {
         
         const testMessage = 'Test message from WhatsApp Bot';
         
-        const response = await axios.post('https://zapin.my.id/send-message', {
+        const { apiUrl } = req.body;
+        
+        // Validate API URL
+        if (!apiUrl) {
+            return res.status(400).json({ error: 'API URL is required. Please configure your WhatsApp API endpoint.' });
+        }
+        
+        try {
+            new URL(apiUrl);
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid API URL format' });
+        }
+
+        const response = await axios.post(apiUrl, {
             api_key: apiKey,
             sender: sender,
             number: testNumber,
