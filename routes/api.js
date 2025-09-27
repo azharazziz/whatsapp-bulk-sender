@@ -193,16 +193,17 @@ router.post('/add-contact', (req, res) => {
 router.post('/send-messages', async (req, res) => {
     try {
         // Get data from request body (client-side storage)
-        const { 
-            apiKey, 
-            sender, 
-            contactId, 
-            contacts = [], 
-            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!' 
+        const {
+            apiKey,
+            sender,
+            apiUrl,
+            contactId,
+            contacts = [],
+            messageTemplate = 'Halo {nama},\n\nPesan ini dikirim untuk {to}.\n\nTerima kasih!'
         } = req.body;
-        
-        if (!apiKey || !sender) {
-            return res.status(400).json({ error: 'API Key and Sender are required. Please save them first.' });
+
+        if (!apiKey || !sender || !apiUrl) {
+            return res.status(400).json({ error: 'API Key, Sender, and API URL are required. Please save them first.' });
         }
         
         if (!contacts || contacts.length === 0) {
@@ -252,7 +253,7 @@ router.post('/send-messages', async (req, res) => {
                     .replace(/{to}/g, toParam); // Keep backward compatibility
                 
                 // ZAPIN API call
-                const response = await axios.post('https://whatsapp.azharazziz.my.id/send-message', {
+                const response = await axios.post(`${apiUrl}/send-message`, {
                     api_key: apiKey,
                     sender: sender,
                     number: contact.phone,
@@ -449,15 +450,15 @@ router.post('/download-report', (req, res) => {
 // Test ZAPIN API response format
 router.post('/test-zapin', async (req, res) => {
     try {
-        const { apiKey, sender, testNumber } = req.body;
-        
-        if (!apiKey || !sender || !testNumber) {
-            return res.status(400).json({ error: 'API Key, Sender, and Test Number are required' });
+        const { apiKey, sender, apiUrl, testNumber } = req.body;
+
+        if (!apiKey || !sender || !apiUrl || !testNumber) {
+            return res.status(400).json({ error: 'API Key, Sender, API URL, and Test Number are required' });
         }
         
         const testMessage = 'Test message from WhatsApp Bot';
-        
-        const response = await axios.post('https://whatsapp.azharazziz.my.id/send-message', {
+
+        const response = await axios.post(`${apiUrl}/send-message`, {
             api_key: apiKey,
             sender: sender,
             number: testNumber,

@@ -4,6 +4,7 @@ let messageTemplate = '';
 let sendHistory = [];
 let apiKey = '';
 let sender = '';
+let apiUrl = '';
 
 // Pagination and search variables
 let currentPage = 1;
@@ -18,7 +19,8 @@ const STORAGE_KEYS = {
     TEMPLATE: 'whatsapp_bot_template',
     HISTORY: 'whatsapp_bot_history',
     API_KEY: 'whatsapp_bot_api_key',
-    SENDER: 'whatsapp_bot_sender'
+    SENDER: 'whatsapp_bot_sender',
+    API_URL: 'whatsapp_bot_api_url'
 };
 
 // Initialize app
@@ -108,7 +110,8 @@ function saveToLocalStorage() {
         localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(sendHistory));
         localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
         localStorage.setItem(STORAGE_KEYS.SENDER, sender);
-        
+        localStorage.setItem(STORAGE_KEYS.API_URL, apiUrl);
+
     } catch (error) {
         console.error('Error saving to localStorage:', error);
         showAlert('Error saving data locally', 'warning');
@@ -123,53 +126,58 @@ function loadFromLocalStorage() {
         const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
         const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
         const savedSender = localStorage.getItem(STORAGE_KEYS.SENDER);
-        
+        const savedApiUrl = localStorage.getItem(STORAGE_KEYS.API_URL);
+
         // Try loading from old keys if new keys are empty (backward compatibility)
         const oldHistoryKey = 'wa_bot_send_history';
         const oldHistory = localStorage.getItem(oldHistoryKey);
-        
+
         contacts = savedContacts ? JSON.parse(savedContacts) : [];
         messageTemplate = savedTemplate || 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
         sendHistory = savedHistory ? JSON.parse(savedHistory) : (oldHistory ? JSON.parse(oldHistory) : []);
         apiKey = savedApiKey || '';
         sender = savedSender || '';
-        
+        apiUrl = savedApiUrl || 'https://whatsapp.azharazziz.my.id';
+
         // If we loaded from old key, migrate to new key
         if (!savedHistory && oldHistory) {
             console.log('Migrating sendHistory from old key to new key');
             localStorage.setItem(STORAGE_KEYS.HISTORY, oldHistory);
             localStorage.removeItem(oldHistoryKey);
         }
-        
+
         console.log('Loaded from localStorage:', {
             contacts: contacts.length,
             template: messageTemplate ? 'present' : 'empty',
             history: sendHistory.length,
             apiKey: apiKey ? 'present' : 'empty',
-            sender: sender ? 'present' : 'empty'
+            sender: sender ? 'present' : 'empty',
+            apiUrl: apiUrl ? 'present' : 'empty'
         });
-        
+
         document.getElementById('messageTemplate').value = messageTemplate;
         document.getElementById('apiKey').value = apiKey;
         document.getElementById('sender').value = sender;
-        
+        document.getElementById('apiUrl').value = apiUrl;
+
         // Initialize filtered contacts
         filteredContacts = [...contacts];
-        
+
         updateContactsList();
         updateTemplatePreview();
-        
+
     } catch (error) {
         console.error('Error loading from localStorage:', error);
         showAlert('Error loading local data, using defaults', 'warning');
-        
+
         // Use defaults if localStorage fails
         contacts = [];
         messageTemplate = 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
         sendHistory = [];
         apiKey = '';
         sender = '';
-        
+        apiUrl = 'https://whatsapp.azharazziz.my.id';
+
         document.getElementById('messageTemplate').value = messageTemplate;
         updateContactsList();
         updateTemplatePreview();
@@ -541,24 +549,26 @@ async function updateTemplate() {
 
 // Save API credentials (now saves locally)
 async function saveCredentials() {
+    const newApiUrl = document.getElementById('apiUrl').value.trim();
     const newApiKey = document.getElementById('apiKey').value.trim();
     const newSender = document.getElementById('sender').value.trim();
-    
-    if (!newApiKey || !newSender) {
-        showAlert('API Key dan Sender harus diisi', 'warning');
+
+    if (!newApiUrl || !newApiKey || !newSender) {
+        showAlert('API URL, API Key dan Sender harus diisi', 'warning');
         return;
     }
-    
+
     try {
+        apiUrl = newApiUrl;
         apiKey = newApiKey;
         sender = newSender;
         saveToLocalStorage();
-        
+
         // Update API status after saving credentials
         updateApiStatus();
-        
+
         showAlert('Kredensial API berhasil disimpan', 'success');
-        
+
     } catch (error) {
         showAlert('Error saving credentials', 'danger');
         console.error('Save credentials error:', error);
@@ -815,15 +825,17 @@ function updateContactsList() {
 // Send messages to all contacts
 async function sendMessages() {
     // Get current values from form (in case user hasn't saved them yet)
+    const currentApiUrl = document.getElementById('apiUrl').value.trim();
     const currentApiKey = document.getElementById('apiKey').value.trim();
     const currentSender = document.getElementById('sender').value.trim();
-    
+
     // Use stored values as fallback, but prefer current form values
+    const useApiUrl = currentApiUrl || apiUrl;
     const useApiKey = currentApiKey || apiKey;
     const useSender = currentSender || sender;
-    
-    if (!useApiKey || !useSender) {
-        showAlert('API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
+
+    if (!useApiUrl || !useApiKey || !useSender) {
+        showAlert('API URL, API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
         return;
     }
     
@@ -901,8 +913,9 @@ async function sendMessages() {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ 
-                        apiKey: useApiKey, 
+                    body: JSON.stringify({
+                        apiUrl: useApiUrl,
+                        apiKey: useApiKey,
                         sender: useSender,
                         contactId: contact.id,
                         contacts: contacts,
@@ -1051,14 +1064,16 @@ async function sendMessages() {
 
 // Send message to individual contact
 async function sendMessageToContact(contactId) {
+    const currentApiUrl = document.getElementById('apiUrl').value.trim();
     const currentApiKey = document.getElementById('apiKey').value.trim();
     const currentSender = document.getElementById('sender').value.trim();
-    
+
+    const useApiUrl = currentApiUrl || apiUrl;
     const useApiKey = currentApiKey || apiKey;
     const useSender = currentSender || sender;
-    
-    if (!useApiKey || !useSender) {
-        showAlert('API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
+
+    if (!useApiUrl || !useApiKey || !useSender) {
+        showAlert('API URL, API Key dan Sender harus diisi dan disimpan terlebih dahulu', 'warning');
         return;
     }
     
@@ -1079,8 +1094,9 @@ async function sendMessageToContact(contactId) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
-                apiKey: useApiKey, 
+            body: JSON.stringify({
+                apiUrl: useApiUrl,
+                apiKey: useApiKey,
                 sender: useSender,
                 contactId: contactId,
                 contacts: contacts,
@@ -1354,11 +1370,13 @@ function clearAllData() {
             contacts = [];
             messageTemplate = 'Halo *{nama}*,\n\nPesan ini dikirim untuk _{nama}_.\n\nLink: undangan.com/?to={nama_url}\n\nTerima kasih!';
             sendHistory = [];
+            apiUrl = 'https://whatsapp.azharazziz.my.id';
             apiKey = '';
             sender = '';
-            
+
             // Update UI
             document.getElementById('messageTemplate').value = messageTemplate;
+            document.getElementById('apiUrl').value = apiUrl;
             document.getElementById('apiKey').value = '';
             document.getElementById('sender').value = '';
             
@@ -1588,15 +1606,20 @@ function initHeaderFunctionality() {
     setInterval(updateHeaderStats, 5000);
     
     // Update API status when credentials change with debouncing
+    const apiUrlInput = document.getElementById('apiUrl');
     const apiKeyInput = document.getElementById('apiKey');
     const senderInput = document.getElementById('sender');
-    
+
     let updateTimeout;
     const debouncedUpdate = () => {
         clearTimeout(updateTimeout);
         updateTimeout = setTimeout(updateApiStatus, 300);
     };
-    
+
+    if (apiUrlInput) {
+        apiUrlInput.addEventListener('input', debouncedUpdate);
+        apiUrlInput.addEventListener('blur', updateApiStatus);
+    }
     if (apiKeyInput) {
         apiKeyInput.addEventListener('input', debouncedUpdate);
         apiKeyInput.addEventListener('blur', updateApiStatus);
@@ -1627,15 +1650,17 @@ function updateHeaderStats() {
 function updateApiStatus() {
     const apiStatusDot = document.getElementById('apiStatus');
     const apiStatusText = document.getElementById('apiStatusText');
-    
+
     // Get current values from inputs or use stored values
+    const currentApiUrl = document.getElementById('apiUrl')?.value.trim() || apiUrl;
     const currentApiKey = document.getElementById('apiKey')?.value.trim() || apiKey;
     const currentSender = document.getElementById('sender')?.value.trim() || sender;
-    
+
+    const hasApiUrl = currentApiUrl && currentApiUrl.length > 0;
     const hasApiKey = currentApiKey && currentApiKey.length > 0;
     const hasSender = currentSender && currentSender.length > 0;
-    
-    if (hasApiKey && hasSender) {
+
+    if (hasApiUrl && hasApiKey && hasSender) {
         if (apiStatusDot) {
             apiStatusDot.className = 'status-dot online';
         }
